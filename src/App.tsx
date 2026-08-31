@@ -12,10 +12,10 @@ export default function App() {
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [7, 4.5, 9], fov: 45, near: 0.1, far: 200 }}
+        camera={{ position: [1.5, 1.05, 2.0], fov: 40, near: 0.1, far: 100 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
-          gl.toneMappingExposure = 1.3
+          gl.toneMappingExposure = 1.15
           setReady(true)
         }}
       >

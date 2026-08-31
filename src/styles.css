@@ -127,6 +127,44 @@ body,
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* 按钮操作区 ------------------------------------------------------- */
+.hud .action-bar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.hud .action-bar button {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.hud .action-bar button:hover {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.55);
+  transform: translateY(-1px);
+}
+
+.hud .action-bar button:active {
+  transform: translateY(0);
+}
+
 /* FPS stats panel (drei <Stats />) */
 .stats {
   position: fixed !important;
