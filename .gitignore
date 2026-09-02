@@ -8,6 +8,9 @@ dist-ssr
 .vite
 *.tsbuildinfo
 
+# Local verification screenshots
+screenshots/
+
 # Logs
 logs
 *.log
