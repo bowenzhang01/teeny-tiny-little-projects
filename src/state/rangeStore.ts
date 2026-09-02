@@ -34,6 +34,8 @@ export interface RangeState {
   message: string
   /** 消息自增 id，用于 HUD 触发动画 */
   messageId: number
+  /** 屏幕闪光结束时间戳（performance.now 基准，闪光弹专用） */
+  screenFlashUntil: number
   /** 标靶被命中的次数（用于触发倒下动画） */
   targetHits: number
   /** 自动锁定中的目标 id */
@@ -73,6 +75,7 @@ const initial: RangeState = {
   locked: false,
   message: '',
   messageId: 0,
+  screenFlashUntil: 0,
   targetHits: 0,
   lockedTargetId: null,
   hive: {

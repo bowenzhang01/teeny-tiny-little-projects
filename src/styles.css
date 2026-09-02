@@ -676,6 +676,49 @@ body.nv .glass-plate {
   color: var(--muted);
 }
 
+/* 小队位置/状态（通用组件 CommsPanel 内） */
+.squad-pos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.squad-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: rgba(96, 216, 255, 0.03);
+}
+
+.squad-pos-row.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  text-shadow: 0 0 6px rgba(65, 227, 255, 0.35);
+}
+
+.squad-pos-row b {
+  width: 18px;
+  color: inherit;
+}
+
+.squad-pos-row .sq-role-placeholder {
+  flex: 1;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.squad-pos-row em {
+  font-style: normal;
+  font-size: 8px;
+  opacity: 0.8;
+}
+
 .env-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -904,6 +947,27 @@ body.nv .glass-plate {
   font-size: 9px;
   white-space: nowrap;
   letter-spacing: 0.08em;
+}
+
+/* 通用屏幕闪光（闪光弹/爆炸白闪） ---------------------------------- */
+.screen-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.55) 42%, transparent 78%);
+  animation: screen-flash-out 0.32s ease-out both;
+  pointer-events: none;
+}
+
+@keyframes screen-flash-out {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* 命中反馈 / 状态 ------------------------------------------------------ */
@@ -1260,6 +1324,18 @@ body.nv .glass-plate {
   gap: 10px;
 }
 
+.a-bottom-left {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  width: 262px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100% - 240px);
+  overflow: hidden;
+}
+
 .a-right {
   position: absolute;
   right: 22px;
@@ -1601,11 +1677,13 @@ body.nv .glass-plate {
 /* ---- 操作提示 ---- */
 .a-controls {
   position: absolute;
-  left: 22px;
-  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 64px;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
   font-family: 'Consolas', 'Menlo', monospace;
   font-size: 9px;
   letter-spacing: 0.1em;
@@ -1751,7 +1829,11 @@ body.nv .glass-plate {
   }
 
   .a-controls {
-    bottom: 46px;
+    bottom: 52px;
+  }
+
+  .a-bottom-left {
+    bottom: 14px;
   }
 
   .a-bottom-right {

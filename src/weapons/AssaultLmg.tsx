@@ -207,53 +207,130 @@ export function AssaultLmg() {
   return (
     <>
       <group ref={follower} name="assault-lmg">
-        <group ref={recoil} position={[0.34, -0.28, -0.5]} rotation={[0, 0.02, -0.03]}>
-          {/* 机匣主体 */}
+        <group ref={recoil} position={[0.3, -0.25, -0.48]} rotation={[0, 0.05, -0.02]} scale={1.12}>
+          {/* 上机匣（主结构） */}
           <mesh userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.13, 0.14, 0.5]} />
+            <boxGeometry args={[0.13, 0.1, 0.52]} />
             <meshStandardMaterial color="#3b3f49" metalness={0.82} roughness={0.32} />
           </mesh>
+          {/* 下机匣（略窄，形成分层轮廓） */}
+          <mesh position={[0, -0.07, 0.04]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.1, 0.08, 0.34]} />
+            <meshStandardMaterial color="#2c323d" metalness={0.7} roughness={0.42} />
+          </mesh>
+          {/* 顶部导轨 */}
+          <mesh position={[0, 0.062, -0.02]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.07, 0.012, 0.44]} />
+            <meshStandardMaterial color="#191d24" metalness={0.8} roughness={0.3} />
+          </mesh>
 
-          {/* 大弹夹（方箱 · A 的视觉标志） */}
-          <mesh position={[0.02, -0.15, 0.05]} rotation={[0.12, 0, 0]} userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.1, 0.32, 0.2]} />
+          {/* 大弹箱（方箱 · A 的视觉标志） */}
+          <mesh position={[0.03, -0.16, 0.06]} rotation={[0.12, 0, 0]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.11, 0.3, 0.2]} />
             <meshStandardMaterial color="#2b2f38" metalness={0.5} roughness={0.55} />
           </mesh>
-          <mesh position={[0.02, -0.15, 0.05]} rotation={[0.12, 0, 0]} userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.11, 0.1, 0.04]} />
+          <mesh position={[0.03, -0.16, 0.06]} rotation={[0.12, 0, 0]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.115, 0.08, 0.205]} />
             <meshBasicMaterial color="#f87171" toneMapped={false} />
           </mesh>
+          {/* 弹箱侧盖/卡扣 */}
+          <mesh position={[0.092, -0.11, 0.06]} rotation={[0, 0.12, 0]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.02, 0.2, 0.18]} />
+            <meshStandardMaterial color="#22262d" metalness={0.6} roughness={0.5} />
+          </mesh>
 
-          {/* 粗枪管 */}
-          <mesh position={[0, 0.01, -0.36]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
-            <cylinderGeometry args={[0.038, 0.043, 0.42, 18]} />
+          {/* 散热护木（枪管外筒 + 散热孔） */}
+          <mesh position={[0, 0.01, -0.34]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.055, 0.06, 0.34, 14]} />
             <meshStandardMaterial color="#22262d" metalness={0.9} roughness={0.25} />
           </mesh>
-
-          {/* 前握把 */}
-          <mesh position={[0.02, -0.12, -0.18]} rotation={[0.3, 0, 0]} userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.07, 0.18, 0.09]} />
-            <meshStandardMaterial color="#2a2e36" metalness={0.4} roughness={0.6} />
+          {[-0.05, 0.05].map((x) =>
+            [-0.26, -0.34, -0.42].map((z) => (
+              <mesh key={`${x}-${z}`} position={[x, 0.01, z]} userData={{ kind: 'fx' }}>
+                <boxGeometry args={[0.012, 0.05, 0.02]} />
+                <meshStandardMaterial color="#0d1015" metalness={0.6} roughness={0.5} />
+              </mesh>
+            )),
+          )}
+          {/* 散热鳍片（筒身分段，增加机械感） */}
+          {[-0.22, -0.28, -0.34, -0.4].map((z) => (
+            <mesh key={z} position={[0, 0.01, z]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+              <cylinderGeometry args={[0.07, 0.07, 0.018, 14]} />
+              <meshStandardMaterial color="#191d24" metalness={0.85} roughness={0.3} />
+            </mesh>
+          ))}
+          {/* 枪管侧红色能量条（强调激光武装感） */}
+          {[-0.058, 0.058].map((x) => (
+            <mesh key={x} position={[x, 0.01, -0.32]} userData={{ kind: 'fx' }}>
+              <boxGeometry args={[0.006, 0.01, 0.26]} />
+              <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+            </mesh>
+          ))}
+          {/* 前准星 */}
+          <mesh position={[0, 0.09, -0.46]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.015, 0.06, 0.015]} />
+            <meshStandardMaterial color="#2a2e36" metalness={0.7} roughness={0.35} />
           </mesh>
-
-          {/* 机瞄/光学模块（独特瞄准系统视觉） */}
-          <mesh position={[0, 0.12, -0.02]} userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.06, 0.05, 0.2]} />
-            <meshStandardMaterial color="#151920" metalness={0.7} roughness={0.35} />
+          {/* 枪口制退器 */}
+          <mesh position={[0, 0.01, -0.57]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.062, 0.052, 0.1, 14]} />
+            <meshStandardMaterial color="#191d24" metalness={0.9} roughness={0.22} />
           </mesh>
-          <mesh position={[0, 0.12, -0.02]} userData={{ kind: 'fx' }}>
-            <boxGeometry args={[0.028, 0.012, 0.004]} />
+          <mesh position={[0, 0.01, -0.615]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.03, 0.03, 0.04, 10]} />
             <meshBasicMaterial color="#ff6b5e" toneMapped={false} />
           </mesh>
 
+          {/* 前握把 */}
+          <mesh position={[0.03, -0.13, -0.16]} rotation={[0.32, 0, -0.06]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.07, 0.18, 0.09]} />
+            <meshStandardMaterial color="#2a2e36" metalness={0.4} roughness={0.6} />
+          </mesh>
+          {/* 后握把 */}
+          <mesh position={[0, -0.14, 0.16]} rotation={[0.42, 0, 0]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.07, 0.17, 0.08]} />
+            <meshStandardMaterial color="#262a32" metalness={0.4} roughness={0.6} />
+          </mesh>
+          {/* 折叠枪托 */}
+          <mesh position={[-0.02, -0.02, 0.31]} rotation={[0.08, 0, 0]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.06, 0.12, 0.16]} />
+            <meshStandardMaterial color="#2c323d" metalness={0.6} roughness={0.5} />
+          </mesh>
+
+          {/* 顶部提把 + 光学模块 */}
+          <mesh position={[0, 0.12, -0.04]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.05, 0.05, 0.24]} />
+            <meshStandardMaterial color="#151920" metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.12, -0.04]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.032, 0.014, 0.005]} />
+            <meshBasicMaterial color="#ff6b5e" toneMapped={false} />
+          </mesh>
+
+          {/* 侧面激光模块（瞄具的一部分） */}
+          <mesh position={[0.072, 0.03, -0.3]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.018, 0.035, 0.12]} />
+            <meshStandardMaterial color="#1c2028" metalness={0.75} roughness={0.35} />
+          </mesh>
+          <mesh position={[0.082, 0.03, -0.365]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.012, 0.012, 0.02, 8]} />
+            <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+          </mesh>
+
+          {/* 红色能量线（科技感点缀） */}
+          <mesh position={[0.068, -0.02, 0.02]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.004, 0.004, 0.3]} />
+            <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+          </mesh>
+
           {/* 枪口闪光 */}
-          <mesh ref={flash} position={[0, 0.01, -0.55]} visible={false}>
+          <mesh ref={flash} position={[0, 0.01, -0.62]} visible={false}>
             <octahedronGeometry args={[0.07, 0]} />
             <meshBasicMaterial color="#ff8a5c" toneMapped={false} />
           </mesh>
 
           {/* 枪口参考点 */}
-          <object3D ref={muzzle} position={[0, 0.01, -0.56]} />
+          <object3D ref={muzzle} position={[0, 0.01, -0.63]} />
         </group>
       </group>
 

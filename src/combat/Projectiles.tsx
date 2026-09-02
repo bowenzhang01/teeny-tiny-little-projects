@@ -68,11 +68,24 @@ interface Explosion {
   sparks: Spark[]
   light: THREE.PointLight
   color: THREE.Color
+  /** 是否为大白闪（闪光弹） */
+  flash: boolean
+}
+
+/** 燃烧弹落地后的持续火焰区 */
+interface BurnZone {
+  object: THREE.Group
+  age: number
+  ignition: number
+  life: number
+  flames: THREE.Mesh[]
+  light: THREE.PointLight
 }
 
 const pending: Actor[] = []
 const actors: Actor[] = []
 const explosions: Explosion[] = []
+const burns: BurnZone[] = []
 
 let lastFxMessageAt = 0
 
@@ -229,17 +242,32 @@ export function spawnLmgRound(origin: THREE.Vector3, dir: THREE.Vector3) {
   })
 }
 
+function grenadePalette(type: GrenadeVariant) {
+  if (type === 'launcher') return { color: '#ff8c42', points: 5, label: '榴弹', flash: false }
+  if (type === 'frag') return { color: '#ff8a5c', points: 8, label: '碎片手雷', flash: false }
+  if (type === 'flash') return { color: '#ffffff', points: 4, label: '闪光弹', flash: true }
+  return { color: '#ff9f43', points: 6, label: '燃烧弹', flash: false }
+}
+
 export function Projectiles() {
   const group = useRef<THREE.Group>(null!)
 
-  const spawnExplosion = (parent: THREE.Group, pos: THREE.Vector3, color: THREE.Color, big: boolean) => {
+  const spawnExplosion = (
+    parent: THREE.Group,
+    pos: THREE.Vector3,
+    color: THREE.Color,
+    big: boolean,
+    opts?: { flash?: boolean; shards?: number },
+  ) => {
+    const flash = opts?.flash ?? false
     const object = new THREE.Group()
     object.position.copy(pos)
 
+    // 闪光弹：白色大核心 + 快闪；普通爆炸：彩色核心
     const core = new THREE.Mesh(
       new THREE.SphereGeometry(1, 14, 14),
       new THREE.MeshBasicMaterial({
-        color,
+        color: flash ? '#ffffff' : color,
         transparent: true,
         opacity: 1,
         toneMapped: false,
@@ -247,25 +275,42 @@ export function Projectiles() {
         blending: THREE.AdditiveBlending,
       }),
     )
-    const flash = new THREE.Mesh(
+    const flashMesh = new THREE.Mesh(
       new THREE.SphereGeometry(1, 8, 8),
       new THREE.MeshBasicMaterial({
-        color: '#fff3da',
+        color: '#ffffff',
         transparent: true,
-        opacity: 0.9,
+        opacity: flash ? 1 : 0.9,
         toneMapped: false,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
     )
-    object.add(core, flash)
+    object.add(core, flashMesh)
 
-    const sparkCount = big ? 14 : 8
+    // 闪光弹追加扩散光环
+    if (flash) {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.5, 0.72, 40),
+        new THREE.MeshBasicMaterial({
+          color: '#ffffff',
+          transparent: true,
+          opacity: 0.85,
+          toneMapped: false,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      )
+      ring.rotation.x = Math.PI / 2
+      object.add(ring)
+    }
+
+    const sparkCount = opts?.shards ?? (big ? 14 : 8)
     const sparks: Spark[] = []
     for (let i = 0; i < sparkCount; i++) {
       const s = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03, 6, 6),
-        new THREE.MeshBasicMaterial({ color: i % 2 ? '#ffd166' : '#ff8c42', toneMapped: false }),
+        new THREE.SphereGeometry(flash ? 0.02 : 0.03, 6, 6),
+        new THREE.MeshBasicMaterial({ color: flash ? '#ffffff' : i % 2 ? '#ffd166' : '#ff8c42', toneMapped: false }),
       )
       s.position.copy(pos)
       object.add(s)
@@ -276,11 +321,47 @@ export function Projectiles() {
       })
     }
 
-    const light = new THREE.PointLight(color, big ? 18 : 9, big ? 7 : 4.5, 2)
+    const light = new THREE.PointLight(flash ? '#ffffff' : color, flash ? 45 : big ? 18 : 9, flash ? 12 : big ? 7 : 4.5, 2)
     object.add(light)
 
     parent.add(object)
-    explosions.push({ object, age: 0, life: big ? 0.55 : 0.38, sparks, light, color })
+    explosions.push({
+      object,
+      age: 0,
+      life: flash ? 0.34 : big ? 0.55 : 0.38,
+      sparks,
+      light,
+      color,
+      flash,
+    })
+  }
+
+  /** 燃烧弹火焰区：0.25s 引燃延迟，随后持续约 1.6s */
+  const spawnBurn = (parent: THREE.Group, pos: THREE.Vector3) => {
+    const object = new THREE.Group()
+    object.position.copy(pos)
+    const flames: THREE.Mesh[] = []
+    for (let i = 0; i < 9; i++) {
+      const flame = new THREE.Mesh(
+        new THREE.ConeGeometry(0.09 + Math.random() * 0.08, 0.5 + Math.random() * 0.55, 8),
+        new THREE.MeshBasicMaterial({
+          color: i % 2 ? '#ff9f43' : '#ff5c33',
+          transparent: true,
+          opacity: 0.85,
+          toneMapped: false,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      )
+      flame.position.set((Math.random() - 0.5) * 0.85, 0.3, (Math.random() - 0.5) * 0.85)
+      object.add(flame)
+      flames.push(flame)
+    }
+    const light = new THREE.PointLight('#ff7a3c', 0, 6, 2)
+    object.add(light)
+    object.visible = false
+    parent.add(object)
+    burns.push({ object, age: 0, ignition: 0.25, life: 1.85, flames, light })
   }
 
   const findTargetAt = (pos: THREE.Vector3) =>
@@ -316,33 +397,42 @@ export function Projectiles() {
         a.object.rotation.x += dt * 9
         a.life += dt
 
+        const palette = grenadePalette(a.type)
         const hit = findTargetAt(a.object.position)
         if (hit) {
-          const isLauncher = a.type === 'launcher'
-          const color = isLauncher
-            ? '#ff8c42'
-            : a.type === 'frag'
-              ? '#ff8a5c'
-              : a.type === 'flash'
-                ? '#fff7d6'
-                : '#ff9f43'
-          const points = isLauncher ? 5 : a.type === 'frag' ? 8 : a.type === 'flash' ? 4 : 6
-          const label = isLauncher ? '榴弹' : a.type === 'frag' ? '碎片手雷' : a.type === 'flash' ? '闪光弹' : '燃烧弹'
-          spawnExplosion(parent, a.object.position.clone(), new THREE.Color(color), isLauncher || a.type !== 'flash')
+          if (a.type === 'flash') {
+            // 闪光弹：大白闪 + 全屏白屏 + 不推倒标靶
+            spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ffffff'), true, { flash: true, shards: 5 })
+            rangeStore.set({ screenFlashUntil: performance.now() + 260 })
+          } else if (a.type === 'incendiary') {
+            // 燃烧弹：小爆点 + 延迟火焰带
+            spawnExplosion(parent, a.object.position.clone(), new THREE.Color(palette.color), false)
+            spawnBurn(parent, a.object.position.clone())
+          } else {
+            // 榴弹 / 碎片手雷：碎片更多，爆炸更大
+            spawnExplosion(
+              parent,
+              a.object.position.clone(),
+              new THREE.Color(palette.color),
+              true,
+              { shards: a.type === 'frag' ? 20 : 14 },
+            )
+          }
           if (a.type !== 'flash') targetRegistry.knockDown(hit.id)
-          registerImpact({ points, shots: 0 })
-          pushFxMessage(`${label}命中 +${points}`)
+          registerImpact({ points: palette.points, shots: 0 })
+          pushFxMessage(`${palette.label}命中 +${palette.points}`)
           exploded = true
         } else if (a.object.position.y < 0.02 || a.life > a.maxLife) {
-          const isLauncher = a.type === 'launcher'
-          const color = isLauncher
-            ? '#ff8c42'
-            : a.type === 'frag'
-              ? '#ff8a5c'
-              : a.type === 'flash'
-                ? '#fff7d6'
-                : '#ff9f43'
-          spawnExplosion(parent, a.object.position.clone(), new THREE.Color(color), false)
+          // 地面/超时：也保留类型差异（闪光白闪、燃烧引燃火焰）
+          if (a.type === 'flash') {
+            spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ffffff'), true, { flash: true, shards: 4 })
+            rangeStore.set({ screenFlashUntil: performance.now() + 220 })
+          } else if (a.type === 'incendiary') {
+            spawnExplosion(parent, a.object.position.clone(), new THREE.Color(palette.color), false)
+            spawnBurn(parent, a.object.position.clone())
+          } else {
+            spawnExplosion(parent, a.object.position.clone(), new THREE.Color(palette.color), false)
+          }
           exploded = true
         }
       } else if (a.kind === 'hive') {
@@ -451,13 +541,13 @@ export function Projectiles() {
       e.age += dt
       const k = Math.max(0, 1 - e.age / e.life)
       const core = e.object.children[0] as THREE.Mesh
-      const flash = e.object.children[1] as THREE.Mesh
-      const coreScale = 0.25 + (1 - k) * 0.95
+      const flashMesh = e.object.children[1] as THREE.Mesh
+      const coreScale = e.flash ? 0.5 + (1 - k) * 1.7 : 0.25 + (1 - k) * 0.95
       core.scale.setScalar(Math.max(0.05, coreScale * k))
-      flash.scale.setScalar(Math.max(0.05, coreScale * k * 0.8 + 0.2))
+      flashMesh.scale.setScalar(Math.max(0.05, coreScale * k * 0.8 + (e.flash ? 0.55 : 0.2)))
       ;(core.material as THREE.MeshBasicMaterial).opacity = k
-      ;(flash.material as THREE.MeshBasicMaterial).opacity = k * 0.9
-      e.light.intensity = (e.age < 0.05 ? 30 : 12) * k
+      ;(flashMesh.material as THREE.MeshBasicMaterial).opacity = k * (e.flash ? 1 : 0.9)
+      e.light.intensity = e.flash ? (e.age < 0.045 ? 60 : 26) * k : (e.age < 0.05 ? 30 : 12) * k
 
       for (const s of e.sparks) {
         s.life += dt
@@ -466,9 +556,40 @@ export function Projectiles() {
         ;(s.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - s.life / 0.6)
       }
 
+      // 闪光环扩散
+      if (e.flash && e.object.children[2]) {
+        const ring = e.object.children[2] as THREE.Mesh
+        const rk = Math.max(0, 1 - e.age / e.life)
+        ring.scale.setScalar(1 + (1 - rk) * 8)
+        ;(ring.material as THREE.MeshBasicMaterial).opacity = rk * 0.85
+      }
+
       if (e.age >= e.life) {
         disposeObject(e.object)
         explosions.splice(i, 1)
+      }
+    }
+
+    // 更新燃烧带（引燃延迟 + 持续火焰）
+    for (let i = burns.length - 1; i >= 0; i--) {
+      const b = burns[i]
+      b.age += dt
+      const visible = b.age >= b.ignition
+      b.object.visible = visible
+      if (visible) {
+        const t = b.age - b.ignition
+        const k = Math.max(0, 1 - t / (b.life - b.ignition))
+        const flicker = 0.75 + Math.random() * 0.45
+        for (const f of b.flames) {
+          f.scale.set(0.7 + Math.random() * 0.5, (0.6 + Math.random() * 0.8) * k, 0.7 + Math.random() * 0.5)
+          f.rotation.y += dt * (1 + Math.random())
+          ;(f.material as THREE.MeshBasicMaterial).opacity = k * 0.85 * flicker
+        }
+        b.light.intensity = 12 * k * flicker
+      }
+      if (b.age >= b.life) {
+        disposeObject(b.object)
+        burns.splice(i, 1)
       }
     }
   })

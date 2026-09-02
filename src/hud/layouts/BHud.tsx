@@ -1,11 +1,14 @@
 import { useEffect, useReducer, useState } from 'react'
 import { useRange } from '../../state/rangeStore'
-import { EcgWave } from '../EcgWave'
 import { Bar } from '../widgets/Bar'
 import { CompassStrip } from '../widgets/CompassStrip'
 import { Radar } from '../widgets/Radar'
 import { EnemyMarkers } from '../widgets/EnemyMarkers'
 import { DecoStrip } from '../widgets/DecoStrip'
+import { ScreenFlash } from '../widgets/ScreenFlash'
+import { BioPanel } from '../widgets/BioPanel'
+import { ExoPanel } from '../widgets/ExoPanel'
+import { CommsPanel } from '../widgets/CommsPanel'
 
 /* ---------------------------- 主 HUD ---------------------------- */
 
@@ -38,26 +41,10 @@ export function BHud({ ready }: { ready: boolean }) {
     return () => window.clearInterval(timer)
   }, [])
 
-  // 生理/外骨骼模拟数据（低帧率即可）
-  const [hr, setHr] = useState(97)
-  const [o2, setO2] = useState(97.4)
-  const [temp, setTemp] = useState(36.8)
-  const [adr, setAdr] = useState(0.58)
-  const [exoPower, setExoPower] = useState(96)
-  const [exoArmor, setExoArmor] = useState(94)
-  const [exoHyd, setExoHyd] = useState(87)
-  const [exoInt, setExoInt] = useState(99)
+  // 武器磨损模拟数据（低帧率即可）
   const [wear, setWear] = useState(18)
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setHr((v) => Math.round(Math.max(72, Math.min(132, v + (Math.random() - 0.5) * 6 + (shots > 0 ? 0.4 : 0)))))
-      setO2((v) => Math.max(94, Math.min(99.5, v + (Math.random() - 0.5) * 0.3)))
-      setTemp((v) => Math.max(36.2, Math.min(37.8, v + (Math.random() - 0.5) * 0.12)))
-      setAdr((v) => Math.max(0.2, Math.min(0.92, v + (Math.random() - 0.5) * 0.07)))
-      setExoPower((v) => Math.max(60, Math.min(100, v - 0.08 + (Math.random() - 0.5) * 0.4)))
-      setExoArmor((v) => Math.max(70, Math.min(99, v + (Math.random() - 0.5) * 0.25)))
-      setExoHyd((v) => Math.max(55, Math.min(99, v + (Math.random() - 0.5) * 0.8)))
-      setExoInt((v) => Math.max(88, Math.min(100, v + (Math.random() - 0.5) * 0.2)))
       setWear(Math.min(96, 16 + shots * 0.42 + Math.random() * 2))
     }, 900)
     return () => window.clearInterval(timer)
@@ -87,6 +74,8 @@ export function BHud({ ready }: { ready: boolean }) {
 
   return (
     <div className="hud">
+      {/* 通用屏幕闪光（闪光弹/爆炸白闪） */}
+      <ScreenFlash />
       {/* 玻璃底板 + 扫描线 + 角标 */}
       <div className="glass-plate" aria-hidden />
       <div className="scanline overlay" aria-hidden />
@@ -109,38 +98,10 @@ export function BHud({ ready }: { ready: boolean }) {
         </div>
       </header>
 
-      {/* 左：生理 + 外骨骼 */}
+      {/* 左：通用生理 + 外骨骼 */}
       <aside className="hud-left">
-        <section className="tac bio">
-          <h3>OPERATOR // B</h3>
-          <div className="bio-head">
-            <div>
-              <span className="read-label">HEART RATE</span>
-              <span className="read-big">{hr}<em> BPM</em></span>
-            </div>
-            <span className="read-chip">COMBAT-1</span>
-          </div>
-          <EcgWave rate={hr} arousal={Math.min(0.95, 0.55 + adr * 0.4)} />
-          <div className="bio-grid">
-            <span><i>O2</i><b>{o2.toFixed(1)}%</b></span>
-            <span><i>BP</i><b>128/84</b></span>
-            <span><i>TEMP</i><b>{temp.toFixed(1)}°</b></span>
-            <span><i>ADR</i><b>{adr.toFixed(2)}</b></span>
-          </div>
-        </section>
-
-        <section className="tac exo">
-          <h3>EXO-SUIT // MK.IV</h3>
-          <Bar label="PWR" value={exoPower} />
-          <Bar label="ARMOR" value={exoArmor} />
-          <Bar label="HYD" value={exoHyd} />
-          <Bar label="INTEG" value={exoInt} />
-          <div className="exo-foot">
-            <span>SERVO 6/6</span>
-            <span>JOINT OK</span>
-            <span>BAL 98%</span>
-          </div>
-        </section>
+        <BioPanel operator="B" shots={shots} />
+        <ExoPanel />
       </aside>
 
       {/* 右：武器 + 战术雷达 */}
@@ -218,15 +179,9 @@ export function BHud({ ready }: { ready: boolean }) {
         </section>
       </aside>
 
-      {/* 左下：通信 + 环境 */}
+      {/* 左下：通用小队通信 + 环境 */}
       <aside className="hud-bottom-left">
-        <section className="tac comms">
-          <h3>COMMS LINK // SQ-B</h3>
-          <div className="comms-line live">▸ B: HIVE POD ARMED</div>
-          <div className="comms-line">▸ CH-07 // SYNC OK</div>
-          <div className="comms-line dim">▸ A/E STANDBY · NET 3/5</div>
-          <div className="comms-line dim">▸ ENCRYPT AES-512</div>
-        </section>
+        <CommsPanel squad="SQ-B" activeId="B" />
         <section className="tac env">
           <h3>ENV SENSORS</h3>
           <div className="env-grid">
@@ -243,7 +198,7 @@ export function BHud({ ready }: { ready: boolean }) {
         <div className="status-pills">
           <span className={`pill ${nv ? 'on' : ''}`}>NV {nv ? 'ON' : 'OFF'}</span>
           <span className={`pill ${lockedTargetId ? 'on' : ''}`}>LOCK ○/●</span>
-          <span className="pill">EXO {Math.round(exoPower)}%</span>
+          <span className="pill">EXO LINK</span>
           <span className={`pill ${wear > 75 ? 'warn' : ''}`}>MAINT {wear > 75 ? 'HIGH' : 'OK'}</span>
         </div>
         <DecoStrip />

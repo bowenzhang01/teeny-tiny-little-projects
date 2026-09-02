@@ -6,6 +6,10 @@ import { CompassStrip } from '../widgets/CompassStrip'
 import { Radar } from '../widgets/Radar'
 import { EnemyMarkers } from '../widgets/EnemyMarkers'
 import { DecoStrip } from '../widgets/DecoStrip'
+import { ScreenFlash } from '../widgets/ScreenFlash'
+import { BioPanel } from '../widgets/BioPanel'
+import { ExoPanel } from '../widgets/ExoPanel'
+import { CommsPanel } from '../widgets/CommsPanel'
 
 const A_DECO_POOL = ['A // OPS LINK', 'LASER CAL 0.02', 'CIWS ARMED', 'MAG SENSOR OK', 'NET 98%', 'SAT 4/7']
 
@@ -116,6 +120,8 @@ export function AHud({ ready }: { ready: boolean }) {
 
   return (
     <div className="hud a-hud">
+      {/* 通用屏幕闪光（闪光弹/爆炸白闪） */}
+      <ScreenFlash />
       {/* 斜切红框架（无玻璃整板） */}
       <div className="a-frame" aria-hidden />
 
@@ -208,6 +214,13 @@ export function AHud({ ready }: { ready: boolean }) {
           </div>
           <DecoStrip pool={A_DECO_POOL} />
         </section>
+      </aside>
+
+      {/* 左下：通用生理 / 外骨骼 / 小队通信（与 B 共用组件） */}
+      <aside className="a-bottom-left">
+        <BioPanel operator="A" shots={shots} />
+        <ExoPanel label="EXO-SUIT // MK.IV-A" />
+        <CommsPanel squad="SQ-A" activeId="A" />
       </aside>
 
       {/* 左下：操作提示（A 专属键位） */}
