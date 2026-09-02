@@ -12,12 +12,12 @@ import { playDeploy, playDry, playLmgShot, playRailShot } from '../audio/sfx'
  *
  * 状态机：
  *   STOWED ──Q──▶ AUTO（巡逻+自动交战）
- *   AUTO   ──F──▶ REMOTE（全屏手控：相机接管 + WASD 移动 + 跳跃）
+ *   AUTO   ──F──▶ REMOTE（全屏手控）
  *   REMOTE ──F──▶ AUTO
- *   任何状态 ──Q──▶ STOWED
+ *   AUTO/REMOTE ──Q──▶ STOWING（走回 A 背后）──▶ STOWED
  *
- * 扩展点：AUTO 的移动逻辑集中在 moveToward / aIStateRef ，
- * 未来换寻路/避障系统时只需替换这里，接口（droneStore + targetRegistry）不变。
+ * 扩展点：AUTO 移动集中在 moveToward / aiStateRef，
+ * 未来换寻路/避障系统只需替换这里，接口不变。
  */
 export function QuadDrone() {
   const { camera, gl } = useThree()
@@ -31,7 +31,8 @@ export function QuadDrone() {
   const rightMsl = useRef<THREE.Object3D>(null!)
   const leftPod = useRef<THREE.Group>(null!)
   const rightPod = useRef<THREE.Group>(null!)
-  const legs = useRef<(THREE.Group | null)[]>([])
+  const upperLegs = useRef<(THREE.Group | null)[]>([])
+  const lowerLegs = useRef<(THREE.Group | null)[]>([])
 
   // 运动学（高频，放在 ref）
   const pos = useRef(new THREE.Vector3(1.4, 0, 1.4))
@@ -63,6 +64,7 @@ export function QuadDrone() {
     new THREE.Vector3(-0.6, 0, -5.4),
     new THREE.Vector3(-3.2, 0, -1.6),
   ]
+  const BACK_SPOT = new THREE.Vector3(0, 0, 2.05)
   const ROOM_BOUNDS = { minX: -4.4, maxX: 4.4, minZ: -12.4, maxZ: 2.2 }
 
   const isRemote = () => droneStore.getState().mode === 'remote'
@@ -81,6 +83,11 @@ export function QuadDrone() {
     hasSavedCam.current = false
   }
 
+  const syncLockAfterExit = () => {
+    const lockedNow = document.pointerLockElement !== null
+    rangeStore.set({ locked: lockedNow, lockedTargetId: lockedNow ? rangeStore.getState().lockedTargetId : null })
+  }
+
   const enterRemote = () => {
     saveCamera()
     aiStateRef.current = 'REMOTE'
@@ -89,26 +96,32 @@ export function QuadDrone() {
 
   const exitRemote = () => {
     restoreCamera()
-    const lockedNow = document.pointerLockElement !== null
-    rangeStore.set({ locked: lockedNow, lockedTargetId: lockedNow ? rangeStore.getState().lockedTargetId : null })
+    syncLockAfterExit()
     droneStore.set({ mode: 'auto', aiState: aiStateRef.current })
+  }
+
+  const beginStow = () => {
+    if (droneStore.getState().mode === 'remote') {
+      restoreCamera()
+      syncLockAfterExit()
+    }
+    aiStateRef.current = 'STOWING'
+    droneStore.set({ mode: 'stowing', mgFiring: false, aiState: 'STOWING' })
+    playDeploy()
   }
 
   const toggleDeploy = () => {
     const s = droneStore.getState()
-    if (s.mode === 'stowed') {
-      pos.current.set(1.4, 0, 1.4)
-      yaw.current = 0
-      droneStore.set({ mode: 'auto', aiState: 'PATROL' })
-      playDeploy()
-    } else {
-      if (s.mode === 'remote') {
-        restoreCamera()
-        const lockedNow = document.pointerLockElement !== null
-        rangeStore.set({ locked: lockedNow, lockedTargetId: lockedNow ? rangeStore.getState().lockedTargetId : null })
+    if (s.mode === 'stowed' || s.mode === 'stowing') {
+      if (s.mode === 'stowed') {
+        pos.current.set(1.4, 0, 1.4)
+        yaw.current = 0
+        aiStateRef.current = 'PATROL'
+        droneStore.set({ mode: 'auto', aiState: 'PATROL' })
+        playDeploy()
       }
-      droneStore.set({ mode: 'stowed', mgFiring: false, aiState: 'HOLD' })
-      playDeploy()
+    } else {
+      beginStow()
     }
   }
 
@@ -118,25 +131,29 @@ export function QuadDrone() {
     else if (s.mode === 'remote') exitRemote()
   }
 
-  const getAimTarget = (out: THREE.Vector3, manual: boolean) => {
-    const lock = rangeStore.getState().lockedTargetId
-    const target = lock ? targetRegistry.get(lock) : null
+  const getAimPoint = (out: THREE.Vector3, targetId: string | null, manual: boolean) => {
+    const id = targetId ?? (manual ? rangeStore.getState().lockedTargetId : null)
+    const target = id ? targetRegistry.get(id) : null
     if (target && target.alive) {
       targetRegistry.aimWorld(target, out)
     } else if (manual) {
       camera.getWorldDirection(_dir.current)
       out.copy(camera.position).addScaledVector(_dir.current, 20)
     } else {
-      camera.getWorldDirection(_dir.current)
-      out.copy(camera.position).addScaledVector(_dir.current, 20)
+      // AUTO 无目标时朝机器人自身前方
+      out.set(
+        pos.current.x - Math.sin(yaw.current) * 12,
+        1.2,
+        pos.current.z - Math.cos(yaw.current) * 12,
+      )
     }
     return out
   }
 
-  const fireMg = (manual: boolean) => {
+  const fireMg = (manual: boolean, targetId: string | null = null) => {
     const origin = new THREE.Vector3()
     if (muzzle.current) muzzle.current.getWorldPosition(origin)
-    const aim = getAimTarget(_aim.current, manual)
+    const aim = getAimPoint(_aim.current, targetId, manual)
     const dir = aim.clone().sub(origin).normalize()
     spawnDroneRound(origin, dir)
     playLmgShot()
@@ -145,7 +162,7 @@ export function QuadDrone() {
     rangeStore.set({ shots: s.shots + 1 })
   }
 
-  const fireMissiles = () => {
+  const fireMissiles = (targetId: string | null = null) => {
     const s = droneStore.getState()
     const now = performance.now()
     if (now < s.missileCooldownUntil) {
@@ -158,26 +175,23 @@ export function QuadDrone() {
       return
     }
 
-    const state = droneStore.getState()
-    const range = rangeStore.getState()
-    const locks = range.lockedTargetId
-    const fallback = getAimTarget(_tmp.current, isRemote())
+    const fallback = getAimPoint(_tmp.current, targetId, isRemote())
     const left = new THREE.Vector3()
     const right = new THREE.Vector3()
     if (leftMsl.current) leftMsl.current.getWorldPosition(left)
     if (rightMsl.current) rightMsl.current.getWorldPosition(right)
 
-    if (state.missileLeft > 0) {
-      spawnDroneMissile({ origin: left, targetId: locks, fallbackPoint: fallback.clone(), seed: Math.random() * 1000 })
+    if (s.missileLeft > 0) {
+      spawnDroneMissile({ origin: left, targetId, fallbackPoint: fallback.clone(), seed: Math.random() * 1000 })
     }
-    if (state.missileRight > 0) {
-      spawnDroneMissile({ origin: right, targetId: locks, fallbackPoint: fallback.clone(), seed: Math.random() * 1000 })
+    if (s.missileRight > 0) {
+      spawnDroneMissile({ origin: right, targetId, fallbackPoint: fallback.clone(), seed: Math.random() * 1000 })
     }
-    if (state.missileLeft > 0 && state.missileRight > 0) playRailShot()
+    if (s.missileLeft > 0 && s.missileRight > 0) playRailShot()
 
     droneStore.set({
-      missileLeft: Math.max(0, state.missileLeft - 1),
-      missileRight: Math.max(0, state.missileRight - 1),
+      missileLeft: Math.max(0, s.missileLeft - 1),
+      missileRight: Math.max(0, s.missileRight - 1),
       missileCooldownUntil: now + 6000,
     })
     rangeStore.set({ shots: rangeStore.getState().shots + 2 })
@@ -245,6 +259,11 @@ export function QuadDrone() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const dampAngle = (from: number, to: number, lambda: number, dt: number) => {
+    const diff = ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI
+    return from + diff * (1 - Math.exp(-lambda * dt))
+  }
+
   const moveToward = (target: THREE.Vector3, speed: number, dt: number) => {
     const dx = target.x - pos.current.x
     const dz = target.z - pos.current.z
@@ -273,13 +292,9 @@ export function QuadDrone() {
     return best
   }
 
-  const dampAngle = (from: number, to: number, lambda: number, dt: number) => {
-    const diff = ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI
-    return from + diff * (1 - Math.exp(-lambda * dt))
-  }
-
   useFrame((state, dt) => {
     const s = droneStore.getState()
+    const now = performance.now()
     const deployed = s.mode !== 'stowed'
     deployK.current = THREE.MathUtils.damp(deployK.current, deployed ? 1 : 0, 6, dt)
     const k = deployK.current
@@ -291,15 +306,28 @@ export function QuadDrone() {
       root.current.scale.setScalar(sc)
     }
 
+    // 导弹冷却结束后自动补满（避免“一直弹药不足”）
+    if (deployed && now >= s.missileCooldownUntil && (s.missileLeft < s.missileCapacity || s.missileRight < s.missileCapacity)) {
+      droneStore.set({ missileLeft: s.missileCapacity, missileRight: s.missileCapacity })
+    }
+
     const moving =
-      (s.mode === 'auto' && aiStateRef.current !== 'HOLD' && aiStateRef.current !== 'SCAN') ||
+      s.mode === 'stowing' ||
+      (s.mode === 'auto' && (aiStateRef.current === 'PATROL' || aiStateRef.current === 'MOVE_TO')) ||
       (s.mode === 'remote' && (keys.current.has('KeyW') || keys.current.has('KeyA') || keys.current.has('KeyS') || keys.current.has('KeyD')))
     const legPhase = state.clock.elapsedTime * (moving ? 9 : 0)
-    legs.current.forEach((leg, i) => {
-      if (!leg) return
-      const target = moving ? Math.sin(legPhase + i * (Math.PI / 2)) * 0.5 : 0
-      leg.rotation.x = THREE.MathUtils.damp(leg.rotation.x, target, 8, dt)
-    })
+    for (let i = 0; i < 4; i++) {
+      const upper = upperLegs.current[i]
+      const lower = lowerLegs.current[i]
+      if (upper) {
+        const target = moving ? Math.sin(legPhase + i * (Math.PI / 2)) * 0.5 : 0
+        upper.rotation.x = THREE.MathUtils.damp(upper.rotation.x, target, 8, dt)
+      }
+      if (lower) {
+        const target = moving ? Math.sin(legPhase + i * (Math.PI / 2) + 0.9) * 0.38 : -0.06
+        lower.rotation.x = THREE.MathUtils.damp(lower.rotation.x, target, 8, dt)
+      }
+    }
     if (body.current) {
       const bob = moving ? Math.abs(Math.sin(legPhase)) * 0.035 : 0
       body.current.position.y = THREE.MathUtils.damp(body.current.position.y, bob, 8, dt)
@@ -314,7 +342,6 @@ export function QuadDrone() {
       camera.quaternion.setFromEuler(_euler.current)
       camera.updateMatrixWorld()
 
-      // WASD 相对镜头朝向移动
       const speed = keys.current.has('ShiftLeft') || keys.current.has('ShiftRight') ? 3.6 : 2.3
       const f = keys.current.has('KeyW') ? 1 : keys.current.has('KeyS') ? -1 : 0
       const r = keys.current.has('KeyD') ? 1 : keys.current.has('KeyA') ? -1 : 0
@@ -327,7 +354,6 @@ export function QuadDrone() {
         pos.current.z = THREE.MathUtils.clamp(pos.current.z, ROOM_BOUNDS.minZ, ROOM_BOUNDS.maxZ)
       }
 
-      // Space 四足小跳
       if (keys.current.has('Space') && jumpY.current <= 0.001) {
         jumpVel.current = 4.2
       }
@@ -336,7 +362,6 @@ export function QuadDrone() {
         jumpY.current = Math.max(0, jumpY.current + jumpVel.current * dt)
       }
 
-      // 机枪持续射击
       if (mouseDown.current && s.weapon === 'mg') {
         mgFireTimer.current += dt
         if (mgFireTimer.current >= 0.09) {
@@ -364,19 +389,16 @@ export function QuadDrone() {
           aiStateRef.current = 'ENGAGE'
           const targetYaw = Math.atan2(-dx, -dz)
           yaw.current = dampAngle(yaw.current, targetYaw, 6, dt)
-          // 机枪自动射击
           mgFireTimer.current += dt
           if (mgFireTimer.current >= 0.13) {
             mgFireTimer.current = 0
-            fireMg(false)
+            fireMg(false, target.id)
           }
-          // 导弹自动齐射（冷却好且有余弹）
           if (performance.now() >= s.missileCooldownUntil && (s.missileLeft > 0 || s.missileRight > 0)) {
-            fireMissiles()
+            fireMissiles(target.id)
           }
         }
       } else {
-        // 目标倒下 / 无目标：巡逻
         const wp = WAYPOINTS[waypointIndex.current]
         const d = Math.hypot(wp.x - pos.current.x, wp.z - pos.current.z)
         if (d < 0.45) {
@@ -397,19 +419,29 @@ export function QuadDrone() {
       if (turret.current && target && target.alive) {
         const aim = targetRegistry.aimWorld(target, _tmp.current)
         const local = body.current!.worldToLocal(aim.clone())
-        turret.current.rotation.y = Math.atan2(local.x, local.z) * -1
+        turret.current.rotation.y = Math.atan2(-local.x, -local.z)
+      }
+    }
+
+    // ---- STOWING：走回 A 背后再回收 ----
+    if (s.mode === 'stowing') {
+      aiStateRef.current = 'STOWING'
+      moveToward(BACK_SPOT, 1.8, dt)
+      if (body.current) body.current.rotation.y = yaw.current
+      const d = Math.hypot(BACK_SPOT.x - pos.current.x, BACK_SPOT.z - pos.current.z)
+      if (d < 0.35) {
+        droneStore.set({ mode: 'stowed', mgFiring: false, aiState: 'HOLD' })
       }
     }
 
     // ---- 低频率状态回写（HUD） ----
-    const now = performance.now()
     if (now - lastHudWrite.current > 180) {
       lastHudWrite.current = now
       const cur = droneStore.getState()
       const movingNow =
         cur.mode === 'remote' &&
         (keys.current.has('KeyW') || keys.current.has('KeyA') || keys.current.has('KeyS') || keys.current.has('KeyD'))
-      const autoSpeed = cur.mode === 'auto' ? (aiStateRef.current === 'MOVE_TO' ? 2 : aiStateRef.current === 'PATROL' ? 1.6 : 0) : 0
+      const autoSpeed = cur.mode === 'auto' ? (aiStateRef.current === 'MOVE_TO' ? 2 : aiStateRef.current === 'PATROL' ? 1.6 : 0) : cur.mode === 'stowing' ? 1.8 : 0
       droneStore.set({
         speed: movingNow ? 2.3 : autoSpeed,
         mgHeat: mgHeat.current,
@@ -466,60 +498,114 @@ export function QuadDrone() {
           </mesh>
         </group>
 
-        {/* 背部武器塔 */}
+        {/* 背部武器塔（枪口朝 -Z = 机器人正前方） */}
         <group ref={turret} position={[0, 0.66, 0.02]}>
+          {/* 底座/后机匣 */}
           <mesh castShadow userData={{ kind: 'solid' }}>
-            <boxGeometry args={[0.26, 0.16, 0.34]} />
+            <boxGeometry args={[0.3, 0.2, 0.42]} />
             <meshStandardMaterial color="#343a45" metalness={0.85} roughness={0.3} />
           </mesh>
-          <mesh position={[0, 0.06, -0.26]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
-            <cylinderGeometry args={[0.035, 0.04, 0.34, 12]} />
+          {/* 枪管护套 */}
+          <mesh position={[0, 0.06, -0.3]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.05, 0.055, 0.5, 12]} />
             <meshStandardMaterial color="#22262d" metalness={0.9} roughness={0.25} />
           </mesh>
-          <mesh position={[0, 0.06, -0.44]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
-            <cylinderGeometry args={[0.045, 0.045, 0.05, 12]} />
+          {/* 散热环 */}
+          {[-0.2, -0.28, -0.36].map((z) => (
+            <mesh key={z} position={[0, 0.06, z]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+              <cylinderGeometry args={[0.065, 0.065, 0.02, 12]} />
+              <meshStandardMaterial color="#191d24" metalness={0.85} roughness={0.3} />
+            </mesh>
+          ))}
+          {/* 枪口制退器 */}
+          <mesh position={[0, 0.06, -0.57]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.07, 0.055, 0.1, 12]} />
             <meshStandardMaterial color="#191d24" metalness={0.9} roughness={0.22} />
           </mesh>
-          <object3D ref={muzzle} position={[0, 0.06, -0.46]} />
+          {/* 红色能量条（枪管上方） */}
+          <mesh position={[0, 0.115, -0.3]} userData={{ kind: 'fx' }}>
+            <boxGeometry args={[0.012, 0.01, 0.42]} />
+            <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+          </mesh>
+          <mesh position={[0, 0.06, -0.65]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+            <cylinderGeometry args={[0.028, 0.028, 0.04, 10]} />
+            <meshBasicMaterial color="#ffa94d" toneMapped={false} />
+          </mesh>
+          <object3D ref={muzzle} position={[0, 0.06, -0.68]} />
         </group>
 
-        {/* 左右导弹舱 */}
-        <group ref={leftPod} position={[-0.36, 0.48, 0.14]}>
+        {/* 左右导弹舱（明显可见：舱体 + 双管 + 红色弹头） */}
+        <group ref={leftPod} position={[-0.42, 0.5, 0.08]}>
           <mesh castShadow userData={{ kind: 'solid' }}>
-            <boxGeometry args={[0.12, 0.12, 0.42]} />
+            <boxGeometry args={[0.2, 0.2, 0.52]} />
             <meshStandardMaterial color="#2c323d" metalness={0.6} roughness={0.5} />
           </mesh>
-          <object3D ref={leftMsl} position={[0, 0, -0.24]} />
+          {[0.055, -0.055].map((y) => (
+            <mesh key={y} position={[0, y, -0.22]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+              <cylinderGeometry args={[0.035, 0.04, 0.42, 10]} />
+              <meshStandardMaterial color="#22262d" metalness={0.85} roughness={0.3} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.055, -0.43]} userData={{ kind: 'fx' }}>
+            <coneGeometry args={[0.035, 0.08, 10]} />
+            <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+          </mesh>
+          <mesh position={[0, -0.055, -0.43]} userData={{ kind: 'fx' }}>
+            <coneGeometry args={[0.035, 0.08, 10]} />
+            <meshBasicMaterial color="#ffa94d" toneMapped={false} />
+          </mesh>
+          <object3D ref={leftMsl} position={[0, 0, -0.28]} />
         </group>
-        <group ref={rightPod} position={[0.36, 0.48, 0.14]}>
+        <group ref={rightPod} position={[0.42, 0.5, 0.08]}>
           <mesh castShadow userData={{ kind: 'solid' }}>
-            <boxGeometry args={[0.12, 0.12, 0.42]} />
+            <boxGeometry args={[0.2, 0.2, 0.52]} />
             <meshStandardMaterial color="#2c323d" metalness={0.6} roughness={0.5} />
           </mesh>
-          <object3D ref={rightMsl} position={[0, 0, -0.24]} />
+          {[0.055, -0.055].map((y) => (
+            <mesh key={y} position={[0, y, -0.22]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
+              <cylinderGeometry args={[0.035, 0.04, 0.42, 10]} />
+              <meshStandardMaterial color="#22262d" metalness={0.85} roughness={0.3} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.055, -0.43]} userData={{ kind: 'fx' }}>
+            <coneGeometry args={[0.035, 0.08, 10]} />
+            <meshBasicMaterial color="#ffa94d" toneMapped={false} />
+          </mesh>
+          <mesh position={[0, -0.055, -0.43]} userData={{ kind: 'fx' }}>
+            <coneGeometry args={[0.035, 0.08, 10]} />
+            <meshBasicMaterial color="#ff5f5f" toneMapped={false} />
+          </mesh>
+          <object3D ref={rightMsl} position={[0, 0, -0.28]} />
         </group>
 
-        {/* 四条腿（整体摆动动画） */}
+        {/* 四条两段式腿（大腿摆动 + 小腿回勾） */}
         {legPos.map((p, i) => (
           <group
             key={i}
             position={p}
             ref={(el) => {
-              legs.current[i] = el
+              upperLegs.current[i] = el
             }}
           >
             <mesh position={[0, -0.16, 0]} castShadow userData={{ kind: 'solid' }}>
               <boxGeometry args={[0.09, 0.34, 0.1]} />
               <meshStandardMaterial color="#2a2e38" metalness={0.7} roughness={0.45} />
             </mesh>
-            <mesh position={[0, -0.34, -0.02]} castShadow userData={{ kind: 'solid' }}>
-              <boxGeometry args={[0.07, 0.32, 0.08]} />
-              <meshStandardMaterial color="#333943" metalness={0.75} roughness={0.4} />
-            </mesh>
-            <mesh position={[0, -0.52, -0.04]} userData={{ kind: 'fx' }}>
-              <boxGeometry args={[0.1, 0.04, 0.14]} />
-              <meshStandardMaterial color="#22262d" metalness={0.6} roughness={0.5} />
-            </mesh>
+            <group
+              position={[0, -0.34, 0]}
+              ref={(el) => {
+                lowerLegs.current[i] = el
+              }}
+            >
+              <mesh position={[0, -0.16, -0.02]} castShadow userData={{ kind: 'solid' }}>
+                <boxGeometry args={[0.07, 0.32, 0.08]} />
+                <meshStandardMaterial color="#333943" metalness={0.75} roughness={0.4} />
+              </mesh>
+              <mesh position={[0, -0.32, -0.04]} userData={{ kind: 'fx' }}>
+                <boxGeometry args={[0.1, 0.05, 0.14]} />
+                <meshStandardMaterial color="#22262d" metalness={0.6} roughness={0.5} />
+              </mesh>
+            </group>
           </group>
         ))}
       </group>

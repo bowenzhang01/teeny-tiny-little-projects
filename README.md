@@ -139,13 +139,16 @@ pnpm dev
 
 ### A 专属 · 四足机器人 Q-01（第一版）
 
-- **状态机**：`STOWED ─Q─▶ AUTO ─F─▶ REMOTE`；任何状态按 `Q` 收起（遥控时自动退出并还原 A 视角）。
+- **状态机**：`STOWED ─Q─▶ AUTO ─F─▶ REMOTE`；任何状态按 `Q`：遥控时先退出全屏并还原 A 视角，
+  机器人**走回 A 背后（BACK_SPOT）再回收**，不再原地缩小。遥控链路会自动剔除 A 主体
+  （`OPERATOR CULL: ON`），以换取干净视野（设定解释：A 主体不在机器人链路里渲染）。
 - **AUTO**：航点巡逻 + 到点扫描 + 发现目标后接近至射击环带、自动机枪射击/导弹齐射；
   AI 状态（PATROL/SCAN/MOVE_TO/ENGAGE/HOLD）写入 `droneStore` 供 HUD 显示。
   **移动逻辑集中在 `moveToward` + `aiStateRef`，未来换寻路/避障系统只替换这一段。**
 - **REMOTE**：全屏接管（相机移到机器人头部），WASD 沿镜头方向移动、Space 四足小跳、
   左键开火、1/2 切换武器、F 交还 AI。
-- **武器**：背部「哨兵」机枪塔（热量槽）+ 两侧「蜂针」微型导弹舱（左右各 4 发，冷却 6s）。
+- **武器**：背部「哨兵」机枪塔（热量槽）+ 两侧「蜂针」微型导弹舱（左右各 4 发，冷却 6s，
+  冷却结束后自动补满，避免长时间弹药不足）。
 - **HUD**：AUTO 时 A HUD 右侧显示 `DronePanel`（LINK/POWER/SPEED/AI/MG/MSL/SENSOR）；
   REMOTE 时切到全屏 `DroneHud`（机器人观瞄 + 机身状态 + 武器 + 雷达 + 操作提示）。
 

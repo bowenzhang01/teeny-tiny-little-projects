@@ -1918,6 +1918,22 @@ body.nv .glass-plate {
   color: var(--muted);
 }
 
+.drone-cull-note {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 8.5px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.drone-cull-note b {
+  color: var(--accent);
+}
+
 /* ---- REMOTE 全屏 ---- */
 .drone-hud {
   --accent: #ffa94d;

@@ -76,6 +76,9 @@ export function DroneHud({ ready }: { ready: boolean }) {
           <div className="drone-sensor">
             SENSOR MARK {d.sensorMark ?? '--'} · {d.mgFiring ? 'FIRING' : 'SCAN'}
           </div>
+          <div className="drone-cull-note">
+            <b>OPERATOR CULL: ON</b> · A 主体已从链路剔除，换取干净视野
+          </div>
         </section>
 
         <section className="a-panel drone-radar-panel">

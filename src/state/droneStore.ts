@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
 
-export type DroneMode = 'stowed' | 'auto' | 'remote'
+export type DroneMode = 'stowed' | 'auto' | 'remote' | 'stowing'
 export type DroneWeapon = 'mg' | 'missile'
-export type DroneAiState = 'PATROL' | 'SCAN' | 'MOVE_TO' | 'ENGAGE' | 'HOLD' | 'REMOTE'
+export type DroneAiState = 'PATROL' | 'SCAN' | 'MOVE_TO' | 'ENGAGE' | 'HOLD' | 'REMOTE' | 'STOWING'
 
 export interface DroneState {
   /** 机器人状态：收起 / 自动巡逻 / 手动遥控 */
