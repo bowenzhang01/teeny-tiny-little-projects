@@ -1,15 +1,16 @@
 import type { CharacterConfig } from '../types'
 import { PlaceholderHud } from '../../hud/layouts/PlaceholderHud'
+import { AHud } from '../../hud/layouts/AHud'
 
 /** 未实装角色：先提供配置文件与占位 HUD，后续逐个补武器&布局 */
 export const A: CharacterConfig = {
   id: 'A',
   title: '突击兵',
   role: 'ASSAULT',
-  theme: { primary: '#f87171', secondary: '#fca5a5', label: 'SQUAD-A // VANTA-01', desc: '突击手 · 持续火力' },
-  playable: false,
-  weapons: [],
-  hud: PlaceholderHud,
+  theme: { primary: '#f87171', secondary: '#fca5a5', label: 'SQUAD-A // VANTA-01', desc: '突击手 · LMG / 手雷 / 激光反导' },
+  playable: true,
+  weapons: ['assaultLmg', 'grenadeKit', 'laserCiws'],
+  hud: AHud,
 }
 
 export const C: CharacterConfig = {

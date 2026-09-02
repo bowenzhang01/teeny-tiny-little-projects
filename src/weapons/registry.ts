@@ -4,6 +4,9 @@ import { Railgun } from './Railgun'
 import { Minigun } from './Minigun'
 import { HiveSystem } from './HiveSystem'
 import { WeaponControls } from './WeaponControls'
+import { AssaultLmg } from './AssaultLmg'
+import { GrenadeKit } from './GrenadeKit'
+import { LaserCiws } from './LaserCiws'
 
 export interface WeaponManifest {
   id: string
@@ -21,6 +24,9 @@ export const WEAPON_REGISTRY: Record<string, WeaponManifest> = {
   railgun: { id: 'railgun', name: 'Railgun', component: Railgun },
   minigun: { id: 'minigun', name: 'Minigun', component: Minigun },
   weaponControls: { id: 'weaponControls', name: 'Weapon Controls', component: WeaponControls },
+  assaultLmg: { id: 'assaultLmg', name: 'Assault LMG', component: AssaultLmg },
+  grenadeKit: { id: 'grenadeKit', name: 'Grenade Kit', component: GrenadeKit },
+  laserCiws: { id: 'laserCiws', name: 'Laser CIWS', component: LaserCiws },
 }
 
 export function getWeaponComponent(id: string): ComponentType | null {

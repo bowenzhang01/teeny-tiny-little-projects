@@ -1,195 +1,11 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
-import * as THREE from 'three'
+import { useEffect, useReducer, useState } from 'react'
 import { useRange } from '../../state/rangeStore'
-import { targetRegistry } from '../../combat/targetRegistry'
 import { EcgWave } from '../EcgWave'
-
-/* ---------------------------- 小工具组件 ---------------------------- */
-
-function Bar({ label, value, suffix = '%' }: { label: string; value: number; suffix?: string }) {
-  const v = Math.max(0, Math.min(100, value))
-  const color = v > 70 ? '#7dd3fc' : v > 40 ? '#fbbf24' : '#f87171'
-  return (
-    <div className="tac-bar">
-      <span className="tb-label">{label}</span>
-      <div className="tb-track">
-        <div className="tb-fill" style={{ width: `${v}%`, background: color, boxShadow: `0 0 8px ${color}` }} />
-      </div>
-      <span className="tb-value">{v.toFixed(0)}{suffix}</span>
-    </div>
-  )
-}
-
-/** 罗盘条 + 方位角/俯仰角 */
-function CompassStrip() {
-  const [hdg, setHdg] = useState({ yaw: 0, pitch: 0 })
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const cam = targetRegistry.getCamera()
-      if (!cam) return
-      const v = new THREE.Vector3()
-      cam.getWorldDirection(v)
-      const yaw = (Math.atan2(v.x, -v.z) * 180) / Math.PI
-      const pitch = (Math.asin(Math.max(-1, Math.min(1, v.y))) * 180) / Math.PI
-      setHdg({ yaw: (yaw + 360) % 360, pitch })
-    }, 50)
-    return () => window.clearInterval(timer)
-  }, [])
-
-  // 多周期刻度（-360° ~ 720°），保证横向滚动到任意航向都有内容
-  const ticks: number[] = []
-  for (let d = -360; d <= 720; d += 10) ticks.push(d)
-  const stepPx = 4 // 1° = 4px（刻度宽 28px + 间距 12px，每 10° = 40px）
-  return (
-    <div className="compass-strip">
-      <div className="compass-ruler" style={{ transform: `translateX(${-hdg.yaw * stepPx}px)` }}>
-        {ticks.map((d) => {
-          const norm = ((d % 360) + 360) % 360
-          const label =
-            norm % 90 === 0
-              ? ['N', 'E', 'S', 'W'][(norm / 90) % 4]
-              : `${norm < 100 ? '0' : ''}${norm}`
-          return (
-            <span key={d} className={norm % 90 === 0 ? 'tick-major' : 'tick'}>
-              {label}
-            </span>
-          )
-        })}
-      </div>
-      <div className="compass-center" />
-      <div className="compass-readout">
-        AZ {hdg.yaw.toFixed(1)}° · EL {hdg.pitch >= 0 ? '+' : ''}{hdg.pitch.toFixed(1)}°
-      </div>
-    </div>
-  )
-}
-
-/** 小型雷达：把目标按相对方位/距离投到扇区里 */
-function Radar() {
-  const [blips, setBlips] = useState<Record<string, { x: number; y: number; dist: number }>>({})
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const cam = targetRegistry.getCamera()
-      if (!cam) return
-      const inv = cam.matrixWorldInverse
-      const next: Record<string, { x: number; y: number; dist: number }> = {}
-      for (const t of targetRegistry.all()) {
-        const p = targetRegistry.aimWorld(t)
-        const v = p.clone().applyMatrix4(inv)
-        const bearing = Math.atan2(v.x, -v.z)
-        const dist = Math.hypot(v.x, v.y, v.z)
-        const r = Math.min(1, dist / 16)
-        next[t.id] = { x: 50 + Math.sin(bearing) * 44 * r, y: 50 - Math.cos(bearing) * 44 * r, dist }
-      }
-      setBlips(next)
-    }, 200)
-    return () => window.clearInterval(timer)
-  }, [])
-
-  return (
-    <div className="radar">
-      <div className="radar-ring r1" />
-      <div className="radar-ring r2" />
-      <div className="radar-cross" />
-      {Object.entries(blips).map(([id, b]) => (
-        <span key={id} className={`radar-blip ${id}`} style={{ left: `${b.x}%`, top: `${b.y}%` }}>
-          <i />
-          <em>{b.dist < 10 ? b.dist.toFixed(1) : '--'}m</em>
-        </span>
-      ))}
-      <span className="radar-self">◇</span>
-    </div>
-  )
-}
-
-/** 屏幕投影敌人标记（相对准星的方位） */
-function EnemyMarkers() {
-  const [ids, setIds] = useState<string[]>([])
-  const refs = useRef<Record<string, HTMLDivElement | null>>({})
-  const idsRef = useRef<string[]>([])
-
-  useEffect(() => {
-    let raf = 0
-    const loop = () => {
-      const targets = targetRegistry.all()
-      const keys = targets.map((t) => t.id)
-      if (keys.join(',') !== idsRef.current.join(',')) {
-        idsRef.current = keys
-        setIds(keys)
-      }
-      const cam = targetRegistry.getCamera()
-      const w = window.innerWidth
-      const h = window.innerHeight
-      for (const t of targets) {
-        const el = refs.current[t.id]
-        if (!el || !cam) continue
-        const p = targetRegistry.projectToScreen(targetRegistry.aimWorld(t), w, h)
-        if (!p || p.behind) {
-          el.style.display = 'none'
-          continue
-        }
-        el.style.display = 'flex'
-        el.style.transform = `translate(-50%, -50%) translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`
-      }
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
-  return (
-    <div className="enemy-layer">
-      {ids.map((id) => (
-        <div
-          key={id}
-          ref={(el) => {
-            refs.current[id] = el
-          }}
-          className="enemy-marker"
-          style={{ display: 'none' }}
-        >
-          <span className="em-frame">▣</span>
-          <span className="em-name">{targetRegistry.get(id)?.name ?? id}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** 装饰性滚动数据条（唬人但无害） */
-function DecoStrip() {
-  const pool = [
-    'CH-07 // LINK OK',
-    'SAT 4/7',
-    'NODE 12-B',
-    '0x1F7C',
-    'CAL OK',
-    'FILTER 92%',
-    'G-BUS 3.2',
-    'HASH 4F9E',
-    'PING 12ms',
-    'CORE SYNC',
-  ]
-  const [chips, setChips] = useState<string[]>(pool.slice(0, 5))
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setChips((prev) => {
-        const next = [...prev.slice(1)]
-        next.push(pool[Math.floor(Math.random() * pool.length)])
-        return next
-      })
-    }, 800)
-    return () => window.clearInterval(timer)
-  }, [])
-
-  return (
-    <div className="deco-strip">
-      {chips.map((c, i) => (
-        <span key={i}>{c}</span>
-      ))}
-    </div>
-  )
-}
+import { Bar } from '../widgets/Bar'
+import { CompassStrip } from '../widgets/CompassStrip'
+import { Radar } from '../widgets/Radar'
+import { EnemyMarkers } from '../widgets/EnemyMarkers'
+import { DecoStrip } from '../widgets/DecoStrip'
 
 /* ---------------------------- 主 HUD ---------------------------- */
 
@@ -213,8 +29,12 @@ export function BHud({ ready }: { ready: boolean }) {
 
   // 冷却/闪烁定时器
   const [, tick] = useReducer((x: number) => x + 1, 0)
+  const [nowMs, setNowMs] = useState(0)
   useEffect(() => {
-    const timer = window.setInterval(() => tick(), 120)
+    const timer = window.setInterval(() => {
+      tick()
+      setNowMs(performance.now())
+    }, 120)
     return () => window.clearInterval(timer)
   }, [])
 
@@ -256,7 +76,7 @@ export function BHud({ ready }: { ready: boolean }) {
     document.body.classList.toggle('nv', nv)
   }, [nv])
 
-  const now = performance.now()
+  const now = nowMs
   const hiveCd = Math.max(0, hive.cooldownUntil - now)
   const railgunCd = Math.max(0, railgunCooldownUntil - now)
   const hand = !railgunDeployed && !minigunDeployed

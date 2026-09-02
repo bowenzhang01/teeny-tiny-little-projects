@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useActiveRole } from '../../state/characterStore'
 import { rangeStore } from '../../state/rangeStore'
+import { assaultStore } from '../../state/assaultStore'
 import { SQUAD } from '../../squad'
 import { getWeaponComponent } from '../../weapons/registry'
 
@@ -24,6 +25,8 @@ export function CharacterRig() {
       minigunSpinning: false,
       minigunFiring: false,
     })
+    // A 突击兵专属武器运行时也一并重置
+    assaultStore.reset()
   }, [role])
 
   const weapons = config.weapons

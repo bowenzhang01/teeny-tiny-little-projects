@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { EcgEngine, SPS, samplesPerPx, type EcgTarget } from './ecg'
+import { EcgEngine, SPS, samplesPerPx } from './ecg'
 
 /**
  * 实时合成心电图波形（Canvas 滚动迹线 + 荧光余辉）。
@@ -8,9 +8,6 @@ import { EcgEngine, SPS, samplesPerPx, type EcgTarget } from './ecg'
 export function EcgWave({ rate, arousal = 0.62 }: { rate: number; arousal?: number }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const targetRef = useRef<EcgTarget>({ bpm: rate, arousal, sleeping: false })
-  targetRef.current.bpm = rate
-  targetRef.current.arousal = arousal
 
   useEffect(() => {
     const wrap = wrapRef.current

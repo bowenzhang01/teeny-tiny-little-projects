@@ -252,3 +252,80 @@ export function playMinigunShot() {
   noise.start(now)
   noise.stop(now + duration)
 }
+
+/** A 突击兵 LMG 单发：更脆、更快的短击 */
+export function playLmgShot() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+  const duration = 0.055
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.2)
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.setValueAtTime(1800, now)
+  filter.frequency.exponentialRampToValueAtTime(700, now + duration)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.26, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now)
+  noise.stop(now + duration)
+
+  const osc = ac.createOscillator()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(240, now)
+  osc.frequency.exponentialRampToValueAtTime(90, now + 0.04)
+  const oscGain = ac.createGain()
+  oscGain.gain.setValueAtTime(0.16, now)
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+  osc.connect(oscGain).connect(ac.destination)
+  osc.start(now)
+  osc.stop(now + 0.06)
+}
+
+/** 手雷拔销 + 出手呼啸 */
+export function playThrow() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+
+  // 拔销金属“咔”
+  const osc = ac.createOscillator()
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(1600, now)
+  const clickGain = ac.createGain()
+  clickGain.gain.setValueAtTime(0.07, now)
+  clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+  osc.connect(clickGain).connect(ac.destination)
+  osc.start(now)
+  osc.stop(now + 0.05)
+
+  // 出手气流
+  const duration = 0.3
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.8) * 0.2
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.setValueAtTime(600, now + 0.03)
+  filter.frequency.exponentialRampToValueAtTime(2200, now + 0.26)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.0001, now + 0.03)
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.12)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now + 0.03)
+  noise.stop(now + 0.32)
+}

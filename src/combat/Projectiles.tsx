@@ -2,10 +2,15 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useRef } from 'react'
 import { rangeStore, registerImpact } from '../state/rangeStore'
+import type { GrenadeKind } from '../state/assaultStore'
 import { targetRegistry } from './targetRegistry'
+
+/** 榴弹发射器沿用 B 的默认行为；A 手雷使用 frag/flash/incendiary */
+type GrenadeVariant = GrenadeKind | 'launcher'
 
 interface GrenadeActor {
   kind: 'grenade'
+  type: GrenadeVariant
   object: THREE.Group
   vel: THREE.Vector3
   life: number
@@ -40,7 +45,15 @@ interface BulletActor {
   maxLife: number
 }
 
-type Actor = GrenadeActor | HiveActor | RailActor | BulletActor
+interface LmgActor {
+  kind: 'lmg'
+  object: THREE.Object3D
+  vel: THREE.Vector3
+  life: number
+  maxLife: number
+}
+
+type Actor = GrenadeActor | HiveActor | RailActor | BulletActor | LmgActor
 
 interface Spark {
   mesh: THREE.Mesh
@@ -72,7 +85,7 @@ function pushFxMessage(text: string) {
   rangeStore.set({ message: text, messageId: prev.messageId + 1 })
 }
 
-function buildGrenade(): THREE.Group {
+function buildGrenade(type: GrenadeVariant): THREE.Group {
   const g = new THREE.Group()
   const shell = new THREE.Mesh(
     new THREE.SphereGeometry(0.09, 14, 14),
@@ -80,7 +93,10 @@ function buildGrenade(): THREE.Group {
   )
   const band = new THREE.Mesh(
     new THREE.CylinderGeometry(0.093, 0.093, 0.05, 16),
-    new THREE.MeshBasicMaterial({ color: '#ff8c42', toneMapped: false }),
+    new THREE.MeshBasicMaterial({
+      color: type === 'launcher' ? '#ff8c42' : type === 'frag' ? '#ff8a5c' : type === 'flash' ? '#fde68a' : '#ff9f43',
+      toneMapped: false,
+    }),
   )
   const tip = new THREE.Mesh(
     new THREE.ConeGeometry(0.05, 0.1, 12),
@@ -122,10 +138,10 @@ function buildRailBolt(): THREE.Group {
   return g
 }
 
-function buildTracer(): THREE.Object3D {
+function buildTracer(color: string): THREE.Object3D {
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(0.03, 0.03, 0.42),
-    new THREE.MeshBasicMaterial({ color: '#ffd166', toneMapped: false, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color, toneMapped: false, blending: THREE.AdditiveBlending, depthWrite: false }),
   )
   return mesh
 }
@@ -141,11 +157,12 @@ function disposeObject(root: THREE.Object3D) {
   root.removeFromParent()
 }
 
-export function spawnGrenade(origin: THREE.Vector3, dir: THREE.Vector3) {
-  const object = buildGrenade()
+export function spawnGrenade(origin: THREE.Vector3, dir: THREE.Vector3, type: GrenadeVariant = 'launcher') {
+  const object = buildGrenade(type)
   object.position.copy(origin)
   pending.push({
     kind: 'grenade',
+    type,
     object,
     vel: dir.clone().normalize().multiplyScalar(19),
     life: 0,
@@ -188,7 +205,7 @@ export function spawnRailBolt(origin: THREE.Vector3, dir: THREE.Vector3) {
 }
 
 export function spawnBullet(origin: THREE.Vector3, dir: THREE.Vector3) {
-  const object = buildTracer()
+  const object = buildTracer('#ffd166')
   object.position.copy(origin)
   pending.push({
     kind: 'bullet',
@@ -196,6 +213,19 @@ export function spawnBullet(origin: THREE.Vector3, dir: THREE.Vector3) {
     vel: dir.clone().normalize().multiplyScalar(90),
     life: 0,
     maxLife: 0.6,
+  })
+}
+
+/** A 突击兵 LMG 的红色高速曳光弹 */
+export function spawnLmgRound(origin: THREE.Vector3, dir: THREE.Vector3) {
+  const object = buildTracer('#ff6b5e')
+  object.position.copy(origin)
+  pending.push({
+    kind: 'lmg',
+    object,
+    vel: dir.clone().normalize().multiplyScalar(110),
+    life: 0,
+    maxLife: 0.5,
   })
 }
 
@@ -288,13 +318,31 @@ export function Projectiles() {
 
         const hit = findTargetAt(a.object.position)
         if (hit) {
-          spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ff8c42'), true)
-          targetRegistry.knockDown('T-01')
-          registerImpact({ points: 5, shots: 0 })
-          pushFxMessage(`榴弹命中 +5`)
+          const isLauncher = a.type === 'launcher'
+          const color = isLauncher
+            ? '#ff8c42'
+            : a.type === 'frag'
+              ? '#ff8a5c'
+              : a.type === 'flash'
+                ? '#fff7d6'
+                : '#ff9f43'
+          const points = isLauncher ? 5 : a.type === 'frag' ? 8 : a.type === 'flash' ? 4 : 6
+          const label = isLauncher ? '榴弹' : a.type === 'frag' ? '碎片手雷' : a.type === 'flash' ? '闪光弹' : '燃烧弹'
+          spawnExplosion(parent, a.object.position.clone(), new THREE.Color(color), isLauncher || a.type !== 'flash')
+          if (a.type !== 'flash') targetRegistry.knockDown(hit.id)
+          registerImpact({ points, shots: 0 })
+          pushFxMessage(`${label}命中 +${points}`)
           exploded = true
         } else if (a.object.position.y < 0.02 || a.life > a.maxLife) {
-          spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ff8c42'), false)
+          const isLauncher = a.type === 'launcher'
+          const color = isLauncher
+            ? '#ff8c42'
+            : a.type === 'frag'
+              ? '#ff8a5c'
+              : a.type === 'flash'
+                ? '#fff7d6'
+                : '#ff9f43'
+          spawnExplosion(parent, a.object.position.clone(), new THREE.Color(color), false)
           exploded = true
         }
       } else if (a.kind === 'hive') {
@@ -331,8 +379,9 @@ export function Projectiles() {
         }
 
         if (dist < 0.55 || a.life > a.maxLife) {
+          const hit = findTargetAt(pos)
           spawnExplosion(parent, pos.clone(), new THREE.Color('#ffc46b'), false)
-          targetRegistry.knockDown('T-01')
+          if (hit) targetRegistry.knockDown(hit.id)
           registerImpact({ points: 2, shots: 0 })
           pushFxMessage('蜂巢导弹命中 +2')
           exploded = true
@@ -346,12 +395,29 @@ export function Projectiles() {
         const hit = findTargetAt(a.object.position)
         if (hit) {
           spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#67e8f9'), true)
-          targetRegistry.knockDown('T-01')
+          targetRegistry.knockDown(hit.id)
           registerImpact({ points: 15, shots: 0 })
           pushFxMessage('轨道炮命中 +15')
           exploded = true
         } else if (a.life > a.maxLife) {
           spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#67e8f9'), false)
+          exploded = true
+        }
+      } else if (a.kind === 'lmg') {
+        // A 突击兵 LMG 红色曳光
+        a.object.position.addScaledVector(a.vel, dt)
+        a.life += dt
+        if (a.vel.lengthSq() > 0.01) {
+          a.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), a.vel.clone().normalize())
+        }
+        const hit = findTargetAt(a.object.position)
+        if (hit) {
+          spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ff6b5e'), false)
+          targetRegistry.knockDown(hit.id)
+          registerImpact({ points: 1, shots: 0 })
+          pushFxMessage('LMG 命中 +1')
+          exploded = true
+        } else if (a.life > a.maxLife) {
           exploded = true
         }
       } else {
@@ -364,7 +430,7 @@ export function Projectiles() {
         const hit = findTargetAt(a.object.position)
         if (hit) {
           spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ffd166'), false)
-          targetRegistry.knockDown('T-01')
+          targetRegistry.knockDown(hit.id)
           registerImpact({ points: 1, shots: 0 })
           pushFxMessage('六管命中 +1')
           exploded = true
