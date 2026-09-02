@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { assaultStore } from '../state/assaultStore'
+import { droneStore } from '../state/droneStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnLmgRound } from '../combat/Projectiles'
 import { playDry, playLmgShot, playReload } from '../audio/sfx'
@@ -45,6 +46,7 @@ export function AssaultLmg() {
     if (s.reloading || s.mag <= 0) return
     const range = rangeStore.getState()
     if (!range.locked) return
+    if (droneStore.getState().mode === 'remote') return
 
     const muzzlePos = new THREE.Vector3()
     if (muzzle.current) muzzle.current.getWorldPosition(muzzlePos)
@@ -125,12 +127,15 @@ export function AssaultLmg() {
     if (!follower.current || !recoil.current) return
     const a = assaultStore.getState()
     const range = rangeStore.getState()
+    const droneRemote = droneStore.getState().mode === 'remote'
 
     follower.current.position.copy(camera.position)
     follower.current.quaternion.copy(camera.quaternion)
+    // 机器人遥控时隐藏 A 的持枪模型
+    follower.current.visible = !droneRemote
 
-    // 未锁定或换弹时停止射击
-    if (!range.locked || a.reloading) {
+    // 未锁定/换弹/机器人遥控时停止射击
+    if (!range.locked || a.reloading || droneRemote) {
       firing.current = false
       if (a.firing) assaultStore.set({ firing: false })
     }
@@ -176,7 +181,7 @@ export function AssaultLmg() {
 
     // 激光瞄具：从枪口射向锁定目标（或准星 30m 落点）
     if (laserBeam.current && laserDot.current) {
-      const on = a.laserOn && range.locked
+      const on = a.laserOn && range.locked && !droneRemote
       laserBeam.current.visible = on
       laserDot.current.visible = on
       if (on && muzzle.current) {

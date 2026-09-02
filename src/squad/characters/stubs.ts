@@ -9,7 +9,7 @@ export const A: CharacterConfig = {
   role: 'ASSAULT',
   theme: { primary: '#f87171', secondary: '#fca5a5', label: 'SQUAD-A // VANTA-01', desc: '突击手 · LMG / 手雷 / 激光反导' },
   playable: true,
-  weapons: ['assaultLmg', 'grenadeKit', 'laserCiws'],
+  weapons: ['assaultLmg', 'grenadeKit', 'laserCiws', 'quadDrone'],
   hud: AHud,
 }
 

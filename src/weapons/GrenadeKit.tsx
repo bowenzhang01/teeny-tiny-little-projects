@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { assaultStore, useAssault } from '../state/assaultStore'
 import type { GrenadeKind } from '../state/assaultStore'
+import { droneStore } from '../state/droneStore'
 import { spawnGrenade } from '../combat/Projectiles'
 import { playDry, playThrow } from '../audio/sfx'
 
@@ -24,6 +25,7 @@ export function GrenadeKit() {
     const s = assaultStore.getState()
     const range = rangeStore.getState()
     if (!range.locked) return
+    if (droneStore.getState().mode === 'remote') return
     const cur = s.grenades[s.grenadeIndex]
     if (cur.count <= 0) {
       playDry()
@@ -70,7 +72,7 @@ export function GrenadeKit() {
     if (!root.current) return
     root.current.position.copy(camera.position)
     root.current.quaternion.copy(camera.quaternion)
-    root.current.visible = rangeStore.getState().locked
+    root.current.visible = rangeStore.getState().locked && droneStore.getState().mode !== 'remote'
     if (body.current) {
       ;(body.current.material as THREE.MeshStandardMaterial).color.set(slot.color)
       const empty = slot.count <= 0

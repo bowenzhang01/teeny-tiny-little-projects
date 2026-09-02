@@ -60,8 +60,11 @@
 - [x] **第二批**：电磁轨道炮 + 六管机枪（展开/收回、同时开火、榴弹机枪自动隐藏）
 - [x] **第三批**：A 突击兵 = 大弹夹轻机枪（激光瞄具/热度/稳定瞄准）+ 多类型手雷
       （碎片/闪光/燃烧）+ 双肩激光反导（追踪标记辅助锁定）+ 红色锐角战术 HUD
-- [ ] **待做**：角色移动、A 专属四足机器人（收放/自主/遥控，待讨论设计）、
-      C/D/E 切换、移动标靶/虚拟敌人、通信系统实装、靶场重构、射击手感打磨
+- [x] **第四批（第一版）**：A 专属四足机器人 Q-01 —— Q 放下/收起，
+      F 在 `AUTO`（巡逻+自动交战）与 `REMOTE`（全屏手控）间切换，
+      WASD 移动 + Space 小跳 + 1/2 武器切换 + MG/微型导弹 + DronePanel/DroneHud
+- [ ] **待做**：角色移动、C/D/E 实装、移动标靶/虚拟敌人、通信系统实装、
+      靶场重构、射击手感打磨、机器人复杂寻路/避障（AUTO 已留扩展接口）
 
 ### 5. 本机器/环境的坑（重要）
 
@@ -134,6 +137,18 @@ pnpm dev
   组件与布局均与 B 的「青蓝玻璃板」刻意区分：左侧武器/手雷/CIWS 三块，
   右侧战术网 + **心率/生命体征** + 状态，左下外骨骼 + 小队通信，中央锐角准星。
 
+### A 专属 · 四足机器人 Q-01（第一版）
+
+- **状态机**：`STOWED ─Q─▶ AUTO ─F─▶ REMOTE`；任何状态按 `Q` 收起（遥控时自动退出并还原 A 视角）。
+- **AUTO**：航点巡逻 + 到点扫描 + 发现目标后接近至射击环带、自动机枪射击/导弹齐射；
+  AI 状态（PATROL/SCAN/MOVE_TO/ENGAGE/HOLD）写入 `droneStore` 供 HUD 显示。
+  **移动逻辑集中在 `moveToward` + `aiStateRef`，未来换寻路/避障系统只替换这一段。**
+- **REMOTE**：全屏接管（相机移到机器人头部），WASD 沿镜头方向移动、Space 四足小跳、
+  左键开火、1/2 切换武器、F 交还 AI。
+- **武器**：背部「哨兵」机枪塔（热量槽）+ 两侧「蜂针」微型导弹舱（左右各 4 发，冷却 6s）。
+- **HUD**：AUTO 时 A HUD 右侧显示 `DronePanel`（LINK/POWER/SPEED/AI/MG/MSL/SENSOR）；
+  REMOTE 时切到全屏 `DroneHud`（机器人观瞄 + 机身状态 + 武器 + 雷达 + 操作提示）。
+
 ## 交互
 
 - **点击画面**：锁定鼠标，进入射击模式（ESC 退出）
@@ -143,6 +158,8 @@ pnpm dev
 - **右键**：蜂巢导弹（长按轮射 / 双击齐射）
 - **1 / 2 / 3**：收回背挂 / 展开收起 轨道炮 / 展开收起 六管
 - **A 模式**：左键 LMG 连射 · 右键按住稳定瞄准 · `R` 换弹 · `G` 投手雷 · `T` 切手雷
+- **机器人 Q-01**：`Q` 放下/收起 · `F` 自动↔手动（全屏遥控） · 手动时 `WASD` 移动 ·
+  `Space` 小跳 · `Shift` 冲刺 · 左键开火 · `1/2` 切 MG/导弹 · `Q` 收起
 - **N**：夜视滤镜（绿色）
 - 左上角 leva 面板：调靶距、鼠标灵敏度
 
@@ -206,6 +223,7 @@ pnpm dev
 │   ├── state/
 │   │   ├── rangeStore.ts           # 通用：得分 / 命中 / 锁定 / 目标
 │   │   ├── assaultStore.ts         # A：LMG 弹匣/热度、手雷、CIWS 状态
+│   │   ├── droneStore.ts           # A 机器人：模式/电池/武器/HUD 状态
 │   │   ├── characterStore.ts       # activeRoleId + 换人切换
 │   │   └── gunFx.ts                # 后坐力 / 枪口闪光状态
 │   ├── squad/
@@ -225,6 +243,7 @@ pnpm dev
 │   │   │   ├── ExoPanel.tsx        # 外骨骼状态（通用）
 │   │   │   ├── CommsPanel.tsx      # 小队通信 + 队友位置（通用）
 │   │   │   ├── ScreenFlash.tsx     # 爆炸白闪（通用）
+│   │   │   ├── DronePanel.tsx      # 机器人 AUTO 数据面板（A 用）
 │   │   │   ├── CompassStrip.tsx    # 罗盘条
 │   │   │   ├── Radar.tsx           # 战术雷达
 │   │   │   ├── EnemyMarkers.tsx    # 屏幕投影敌标
@@ -232,6 +251,7 @@ pnpm dev
 │   │   └── layouts/
 │   │       ├── BHud.tsx            # B：玻璃板 HUD（完整）
 │   │       ├── AHud.tsx            # A：红色锐角战术 HUD（完整）
+│   │       ├── DroneHud.tsx        # A 机器人 REMOTE 全屏遥控 HUD
 │   │       └── PlaceholderHud.tsx  # 未实装角色占位 HUD
 │   ├── scene/
 │   │   ├── Scene.tsx               # 共享场景组装 + PointerLockControls
@@ -254,6 +274,7 @@ pnpm dev
 │   │   ├── AssaultLmg.tsx          # A 主武器：大弹夹 LMG + 激光瞄具 + 热度
 │   │   ├── GrenadeKit.tsx          # A：G 投掷 / T 切换 多种手雷
 │   │   ├── LaserCiws.tsx           # A：双肩激光反导（追踪标记 / 未来拦截）
+│   │   ├── QuadDrone.tsx           # A 机器人：四足模型/AUTO AI/REMOTE 手控/收放
 │   │   └── WeaponControls.tsx      # 1/2/3 背挂武器切换
 ├── vite.config.ts
 └── tsconfig*.json

@@ -7,6 +7,7 @@ import { WeaponControls } from './WeaponControls'
 import { AssaultLmg } from './AssaultLmg'
 import { GrenadeKit } from './GrenadeKit'
 import { LaserCiws } from './LaserCiws'
+import { QuadDrone } from './QuadDrone'
 
 export interface WeaponManifest {
   id: string
@@ -27,6 +28,7 @@ export const WEAPON_REGISTRY: Record<string, WeaponManifest> = {
   assaultLmg: { id: 'assaultLmg', name: 'Assault LMG', component: AssaultLmg },
   grenadeKit: { id: 'grenadeKit', name: 'Grenade Kit', component: GrenadeKit },
   laserCiws: { id: 'laserCiws', name: 'Laser CIWS', component: LaserCiws },
+  quadDrone: { id: 'quadDrone', name: 'Quad Drone', component: QuadDrone },
 }
 
 export function getWeaponComponent(id: string): ComponentType | null {

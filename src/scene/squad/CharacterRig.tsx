@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useActiveRole } from '../../state/characterStore'
 import { rangeStore } from '../../state/rangeStore'
 import { assaultStore } from '../../state/assaultStore'
+import { droneStore } from '../../state/droneStore'
 import { SQUAD } from '../../squad'
 import { getWeaponComponent } from '../../weapons/registry'
 
@@ -27,6 +28,7 @@ export function CharacterRig() {
     })
     // A 突击兵专属武器运行时也一并重置
     assaultStore.reset()
+    droneStore.reset()
   }, [role])
 
   const weapons = config.weapons

@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState, type CSSProperties } from 'react'
 import { useRange } from '../../state/rangeStore'
 import { assaultStore, useAssault, type GrenadeSlot } from '../../state/assaultStore'
+import { useDrone } from '../../state/droneStore'
 import { targetRegistry } from '../../combat/targetRegistry'
 import { CompassStrip } from '../widgets/CompassStrip'
 import { Radar } from '../widgets/Radar'
@@ -10,6 +11,8 @@ import { ScreenFlash } from '../widgets/ScreenFlash'
 import { BioPanel } from '../widgets/BioPanel'
 import { ExoPanel } from '../widgets/ExoPanel'
 import { CommsPanel } from '../widgets/CommsPanel'
+import { DronePanel } from '../widgets/DronePanel'
+import { DroneHud } from './DroneHud'
 
 const A_DECO_POOL = ['A // OPS LINK', 'LASER CAL 0.02', 'CIWS ARMED', 'MAG SENSOR OK', 'NET 98%', 'SAT 4/7']
 
@@ -84,6 +87,7 @@ function TargetList({ lockedTargetId }: { lockedTargetId: string | null }) {
 export function AHud({ ready }: { ready: boolean }) {
   const { score, hits, shots, locked, message, messageId, lockedTargetId } = useRange()
   const a = useAssault()
+  const drone = useDrone()
   const [, tick] = useReducer((x: number) => x + 1, 0)
   const [reloadPct, setReloadPct] = useState(0)
 
@@ -117,6 +121,9 @@ export function AHud({ ready }: { ready: boolean }) {
 
   const accuracy = shots > 0 ? Math.min(100, Math.round((hits / shots) * 100)) : 0
   const weaponLabel = 'ASSAULT LMG'
+
+  // 机器人手动遥控：切换到全屏 DRONE LINK HUD
+  if (drone.mode === 'remote') return <DroneHud ready={ready} />
 
   return (
     <div className="hud a-hud">
@@ -202,6 +209,9 @@ export function AHud({ ready }: { ready: boolean }) {
 
         {/* 心率等生命体征挪到右侧，避免与左侧手雷选择重叠 */}
         <BioPanel operator="A" shots={shots} />
+
+        {/* 机器人 AUTO 数据面板（放下后显示） */}
+        <DronePanel />
 
         <section className="a-panel status">
           <div className="a-pills">

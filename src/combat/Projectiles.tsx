@@ -53,7 +53,26 @@ interface LmgActor {
   maxLife: number
 }
 
-type Actor = GrenadeActor | HiveActor | RailActor | BulletActor | LmgActor
+interface DroneRoundActor {
+  kind: 'droneRound'
+  object: THREE.Object3D
+  vel: THREE.Vector3
+  life: number
+  maxLife: number
+}
+
+interface DroneMslActor {
+  kind: 'droneMsl'
+  object: THREE.Group
+  vel: THREE.Vector3
+  life: number
+  maxLife: number
+  targetId: string | null
+  seed: number
+  fallbackPoint: THREE.Vector3
+}
+
+type Actor = GrenadeActor | HiveActor | RailActor | BulletActor | LmgActor | DroneRoundActor | DroneMslActor
 
 interface Spark {
   mesh: THREE.Mesh
@@ -159,6 +178,23 @@ function buildTracer(color: string): THREE.Object3D {
   return mesh
 }
 
+function buildDroneMissile(): THREE.Group {
+  const g = new THREE.Group()
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8),
+    new THREE.MeshBasicMaterial({ color: '#ffc46b', toneMapped: false }),
+  )
+  body.rotation.x = Math.PI / 2
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.035, 0.1, 8),
+    new THREE.MeshBasicMaterial({ color: '#ff9f43', toneMapped: false, transparent: true, opacity: 0.9 }),
+  )
+  tip.position.z = 0.18
+  tip.rotation.x = Math.PI / 2
+  g.add(body, tip)
+  return g
+}
+
 function disposeObject(root: THREE.Object3D) {
   root.traverse((o) => {
     const mesh = o as THREE.Mesh
@@ -239,6 +275,40 @@ export function spawnLmgRound(origin: THREE.Vector3, dir: THREE.Vector3) {
     vel: dir.clone().normalize().multiplyScalar(110),
     life: 0,
     maxLife: 0.5,
+  })
+}
+
+/** 机器人机枪塔的琥珀色曳光弹 */
+export function spawnDroneRound(origin: THREE.Vector3, dir: THREE.Vector3) {
+  const object = buildTracer('#ffa94d')
+  object.position.copy(origin)
+  pending.push({
+    kind: 'droneRound',
+    object,
+    vel: dir.clone().normalize().multiplyScalar(100),
+    life: 0,
+    maxLife: 0.55,
+  })
+}
+
+/** 机器人微型导弹（轻度制导，命中 +10） */
+export function spawnDroneMissile(opts: {
+  origin: THREE.Vector3
+  targetId: string | null
+  fallbackPoint: THREE.Vector3
+  seed: number
+}) {
+  const object = buildDroneMissile()
+  object.position.copy(opts.origin)
+  pending.push({
+    kind: 'droneMsl',
+    object,
+    vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 1.5),
+    life: 0,
+    maxLife: 6,
+    targetId: opts.targetId,
+    seed: opts.seed,
+    fallbackPoint: opts.fallbackPoint.clone(),
   })
 }
 
@@ -491,6 +561,60 @@ export function Projectiles() {
           exploded = true
         } else if (a.life > a.maxLife) {
           spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#67e8f9'), false)
+          exploded = true
+        }
+      } else if (a.kind === 'droneRound') {
+        // 机器人机枪塔琥珀曳光
+        a.object.position.addScaledVector(a.vel, dt)
+        a.life += dt
+        if (a.vel.lengthSq() > 0.01) {
+          a.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), a.vel.clone().normalize())
+        }
+        const hit = findTargetAt(a.object.position)
+        if (hit) {
+          spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ffa94d'), false)
+          targetRegistry.knockDown(hit.id)
+          registerImpact({ points: 1, shots: 0 })
+          pushFxMessage('DRONE MG 命中 +1')
+          exploded = true
+        } else if (a.life > a.maxLife) {
+          exploded = true
+        }
+      } else if (a.kind === 'droneMsl') {
+        // 机器人微型导弹（轻度制导）
+        a.life += dt
+        const target = a.targetId ? targetRegistry.get(a.targetId) : null
+        const goal = new THREE.Vector3()
+        if (target && target.alive) {
+          targetRegistry.aimWorld(target, goal)
+        } else {
+          goal.copy(a.fallbackPoint)
+        }
+
+        const pos = a.object.position
+        const toGoal = goal.clone().sub(pos)
+        const dist = toGoal.length()
+        const speed = 16 + Math.sin(a.seed + a.life * 8) * 1.2
+        const desired = toGoal.clone().normalize().multiplyScalar(speed)
+        const t = a.life
+        const sway = Math.sin(a.seed * 11 + t * 10) * 1.6
+        const right = new THREE.Vector3().crossVectors(toGoal.normalize(), new THREE.Vector3(0, 1, 0))
+        if (right.lengthSq() < 0.01) right.set(1, 0, 0)
+        right.normalize()
+        desired.addScaledVector(right, sway).addScaledVector(new THREE.Vector3(0, 1, 0), Math.sin(a.seed * 5 + t * 9) * 0.8)
+
+        a.vel.lerp(desired, Math.min(1, dt * 5))
+        pos.addScaledVector(a.vel, dt)
+        if (a.vel.lengthSq() > 0.01) {
+          a.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), a.vel.clone().normalize())
+        }
+
+        if (dist < 0.5 || a.life > a.maxLife) {
+          const hit = findTargetAt(pos)
+          spawnExplosion(parent, pos.clone(), new THREE.Color('#ffc46b'), false)
+          if (hit) targetRegistry.knockDown(hit.id)
+          registerImpact({ points: 10, shots: 0 })
+          pushFxMessage('DRONE MSL 命中 +10')
           exploded = true
         }
       } else if (a.kind === 'lmg') {

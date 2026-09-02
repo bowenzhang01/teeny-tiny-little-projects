@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { assaultStore } from '../state/assaultStore'
+import { droneStore } from '../state/droneStore'
 import { targetRegistry } from '../combat/targetRegistry'
 
 /**
@@ -52,8 +53,20 @@ export function LaserCiws() {
   useFrame(() => {
     if (!root.current) return
     const range = rangeStore.getState()
+    const remote = droneStore.getState().mode === 'remote'
     root.current.position.copy(camera.position)
     root.current.quaternion.copy(camera.quaternion)
+    root.current.visible = !remote
+
+    if (remote) {
+      if (leftBeam.current) leftBeam.current.visible = false
+      if (rightBeam.current) rightBeam.current.visible = false
+      if (lastTracking.current !== null) {
+        lastTracking.current = null
+        assaultStore.set({ ciws: { online: false, tracking: null } })
+      }
+      return
+    }
 
     if (!range.locked) {
       if (leftBeam.current) leftBeam.current.visible = false
