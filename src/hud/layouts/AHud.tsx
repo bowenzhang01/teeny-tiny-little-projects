@@ -200,6 +200,9 @@ export function AHud({ ready }: { ready: boolean }) {
           </div>
         </section>
 
+        {/* 心率等生命体征挪到右侧，避免与左侧手雷选择重叠 */}
+        <BioPanel operator="A" shots={shots} />
+
         <section className="a-panel status">
           <div className="a-pills">
             <span className={`a-pill ${locked ? 'on' : ''}`}>LIVE</span>
@@ -216,9 +219,8 @@ export function AHud({ ready }: { ready: boolean }) {
         </section>
       </aside>
 
-      {/* 左下：通用生理 / 外骨骼 / 小队通信（与 B 共用组件） */}
+      {/* 左下：通用外骨骼 / 小队通信（与 B 共用组件） */}
       <aside className="a-bottom-left">
-        <BioPanel operator="A" shots={shots} />
         <ExoPanel label="EXO-SUIT // MK.IV-A" />
         <CommsPanel squad="SQ-A" activeId="A" />
       </aside>
