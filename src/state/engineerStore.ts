@@ -20,6 +20,8 @@ export interface EngineerState {
   /** 固定哨戒炮塔（C-4 实装部署/回收） */
   turret: {
     deployed: boolean
+    x: number
+    z: number
   }
   /** 部署包库存（C-5 实装放置/引爆） */
   deploy: {
@@ -28,6 +30,8 @@ export interface EngineerState {
     mineCapacity: number
     barriers: number
     barrierCapacity: number
+    /** 库存自动补充时间戳（performance.now 基准） */
+    replenishAt: number
   }
 }
 
@@ -43,13 +47,14 @@ function makeInitial(): EngineerState {
       ventUntil: 0,
     },
     armsMode: 'stowed',
-    turret: { deployed: false },
+    turret: { deployed: false, x: 0, z: 0 },
     deploy: {
       blueprint: 'mine',
       mines: 3,
       mineCapacity: 3,
       barriers: 3,
       barrierCapacity: 3,
+      replenishAt: 0,
     },
   }
 }
@@ -78,6 +83,17 @@ export const engineerStore = {
   setPlasma(patch: Partial<EngineerState['plasma']>) {
     state = { ...state, plasma: { ...state.plasma, ...patch } }
     emit()
+  },
+  /** 四臂进入 BUSY 部署动画一段时间后回到 OPERATE */
+  runArmsBusy(ms = 850) {
+    state = { ...state, armsMode: 'busy' }
+    emit()
+    window.setTimeout(() => {
+      if (state.armsMode === 'busy') {
+        state = { ...state, armsMode: 'operate' }
+        emit()
+      }
+    }, ms)
   },
   reset() {
     state = makeInitial()

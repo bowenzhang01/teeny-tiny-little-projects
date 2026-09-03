@@ -72,7 +72,15 @@ interface DroneMslActor {
   fallbackPoint: THREE.Vector3
 }
 
-type Actor = GrenadeActor | HiveActor | RailActor | BulletActor | LmgActor | DroneRoundActor | DroneMslActor
+interface TurretRoundActor {
+  kind: 'turretRound'
+  object: THREE.Object3D
+  vel: THREE.Vector3
+  life: number
+  maxLife: number
+}
+
+type Actor = GrenadeActor | HiveActor | RailActor | BulletActor | LmgActor | DroneRoundActor | DroneMslActor | TurretRoundActor
 
 interface Spark {
   mesh: THREE.Mesh
@@ -288,6 +296,20 @@ export function spawnDroneRound(origin: THREE.Vector3, dir: THREE.Vector3) {
     vel: dir.clone().normalize().multiplyScalar(100),
     life: 0,
     maxLife: 0.55,
+  })
+}
+
+/** C 固定哨戒炮塔：双联重机炮的加粗琥珀曳光弹（单发伤害更高） */
+export function spawnTurretRound(origin: THREE.Vector3, dir: THREE.Vector3) {
+  const object = buildTracer('#ffd166')
+  object.scale.set(1.6, 1.6, 1.7)
+  object.position.copy(origin)
+  pending.push({
+    kind: 'turretRound',
+    object,
+    vel: dir.clone().normalize().multiplyScalar(105),
+    life: 0,
+    maxLife: 0.6,
   })
 }
 
@@ -615,6 +637,23 @@ export function Projectiles() {
           if (hit) targetRegistry.knockDown(hit.id)
           registerImpact({ points: 10, shots: 0 })
           pushFxMessage('DRONE MSL 命中 +10')
+          exploded = true
+        }
+      } else if (a.kind === 'turretRound') {
+        // C 哨戒炮塔：双联重机炮加粗曳光，命中 +6
+        a.object.position.addScaledVector(a.vel, dt)
+        a.life += dt
+        if (a.vel.lengthSq() > 0.01) {
+          a.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), a.vel.clone().normalize())
+        }
+        const hit = findTargetAt(a.object.position)
+        if (hit) {
+          spawnExplosion(parent, a.object.position.clone(), new THREE.Color('#ffd166'), false)
+          targetRegistry.knockDown(hit.id)
+          registerImpact({ points: 6, shots: 0 })
+          pushFxMessage('TURRET HIT +6')
+          exploded = true
+        } else if (a.life > a.maxLife) {
           exploded = true
         }
       } else if (a.kind === 'lmg') {
