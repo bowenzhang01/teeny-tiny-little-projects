@@ -17,11 +17,13 @@ export interface EngineerState {
   }
   /** 四机械臂状态（C-3 实装展开/动画） */
   armsMode: ArmsMode
-  /** 固定哨戒炮塔（C-4 实装部署/回收） */
+  /** 固定哨戒炮塔（C-4 实装部署/回收；手动遥控同 C-5 批次） */
   turret: {
     deployed: boolean
     x: number
     z: number
+    /** 手动遥控（类似 A 机器人 REMOTE，但不移动） */
+    manual: boolean
   }
   /** 部署包库存（C-5 实装放置/引爆） */
   deploy: {
@@ -56,7 +58,7 @@ function makeInitial(): EngineerState {
       ventUntil: 0,
     },
     armsMode: 'stowed',
-    turret: { deployed: false, x: 0, z: 0 },
+    turret: { deployed: false, x: 0, z: 0, manual: false },
     deploy: {
       blueprint: 'mine',
       mines: 3,

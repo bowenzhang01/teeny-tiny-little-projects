@@ -50,6 +50,7 @@ export function QuadArms() {
   }
 
   useKeyBinding('toggleArms', {
+    contexts: ['roleHud'],
     onDown: (e) => {
       if (e.repeat) return
       toggleArms()
@@ -72,7 +73,8 @@ export function QuadArms() {
     const work = pending && now >= pending.commitAt ? 1 : 0
     follower.current.position.copy(camera.position)
     follower.current.quaternion.copy(camera.quaternion)
-    follower.current.visible = open > 0.02
+    // 炮塔手动遥控时隐藏 C 本体四臂（它们不跟随炮塔）
+    follower.current.visible = open > 0.02 && !engineerStore.getState().turret.manual
 
     // 部署目标在相机局部空间的坐标（只用于方向感，不把四臂拉成一根）
     let aimX = 0

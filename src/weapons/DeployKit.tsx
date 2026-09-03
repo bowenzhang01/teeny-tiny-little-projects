@@ -193,6 +193,7 @@ export function DeployKit() {
   }
 
   useKeyBinding('cycleBlueprint', {
+    contexts: ['roleHud'],
     onDown: (e) => {
       if (e.repeat) return
       const s = engineerStore.getState()
@@ -204,6 +205,7 @@ export function DeployKit() {
   })
 
   useKeyBinding('placeDeployable', {
+    contexts: ['roleHud'],
     onDown: (e) => {
       if (e.repeat) return
       place()
@@ -211,6 +213,7 @@ export function DeployKit() {
   })
 
   useKeyBinding('detonateMines', {
+    contexts: ['roleHud'],
     onDown: (e) => {
       if (e.repeat) return
       detonate()
@@ -296,9 +299,10 @@ export function DeployKit() {
       spawned.current = null
     }
 
-    // 部署范围指示：准星落点处显示琥珀/红色环形（3~12M）
+    // 部署范围指示：准星落点处显示琥珀/红色环形（3~12M；手动遥控时隐藏）
     const rs = rangeStore.getState()
-    const guide = rs.locked ? crosshairGroundPoint(camera, 0, 100) : null
+    const guide =
+      rs.locked && !engineerStore.getState().turret.manual ? crosshairGroundPoint(camera, 0, 100) : null
     if (rangeRing.current) {
       if (guide) {
         rangeRing.current.visible = true

@@ -5,7 +5,7 @@
  *   避免文档 1.1 里的"HUD 写死提示与真实键位漂移"。
  */
 
-export type InputContextId = 'roleHud' | 'droneRemote' | 'transition'
+export type InputContextId = 'roleHud' | 'droneRemote' | 'turretRemote' | 'transition'
 
 export type InputAction =
   | 'nightVision'
@@ -30,6 +30,7 @@ export type InputAction =
   | 'plasmaVent'
   | 'toggleArms'
   | 'deployTurret'
+  | 'toggleTurretManual'
   | 'cycleBlueprint'
   | 'placeDeployable'
   | 'detonateMines'
@@ -59,6 +60,7 @@ export const INPUT_KEYS: Record<InputAction, string[]> = {
   plasmaVent: ['KeyR'],
   toggleArms: ['Digit2'],
   deployTurret: ['Digit3'],
+  toggleTurretManual: ['KeyF'],
   cycleBlueprint: ['Digit4'],
   placeDeployable: ['KeyG'],
   detonateMines: ['KeyT'],
@@ -78,7 +80,10 @@ export interface ControlHint {
 }
 
 /** 各输入上下文的 HUD 操作提示（由 ControlHints 通用组件渲染） */
-export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'roleC' | 'droneRemote' | 'transition', ControlHint[]> = {
+export const CONTROL_HINTS: Record<
+  'roleB' | 'roleA' | 'roleC' | 'droneRemote' | 'turretRemote' | 'transition',
+  ControlHint[]
+> = {
   roleB: [
     { keys: 'LMB', label: 'FIRE' },
     { keys: 'RMB', label: 'HIVE (HOLD / ×2)' },
@@ -105,6 +110,7 @@ export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'roleC' | 'droneRemote' |
     { keys: '1', label: 'RECALL' },
     { keys: '2', label: 'ARMS' },
     { keys: '3', label: 'TURRET' },
+    { keys: 'F', label: 'SENTRY LINK' },
     { keys: '4', label: 'BLUEPRINT' },
     { keys: 'G', label: 'DEPLOY' },
     { keys: 'T', label: 'DETONATE' },
@@ -117,6 +123,12 @@ export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'roleC' | 'droneRemote' |
     { keys: '1/2', label: 'WEAPON' },
     { keys: 'F', label: 'RETURN AI' },
     { keys: 'Q', label: 'STOW' },
+  ],
+  turretRemote: [
+    { keys: 'LMB', label: 'FIRE' },
+    { keys: 'F', label: 'RETURN AUTO' },
+    { keys: '3', label: 'RECALL' },
+    { keys: 'N', label: 'NV' },
   ],
   transition: [],
 }

@@ -8,6 +8,7 @@ import { Projectiles } from '../combat/Projectiles'
 import { CharacterRig } from './squad/CharacterRig'
 import { rangeStore } from '../state/rangeStore'
 import { useDrone } from '../state/droneStore'
+import { useEngineer } from '../state/engineerStore'
 
 export function Scene() {
   const { targetDistance, sensitivity } = useControls('靶场', {
@@ -15,7 +16,8 @@ export function Scene() {
     sensitivity: { value: 0.7, min: 0.1, max: 2, step: 0.05, label: '鼠标灵敏度' },
   })
   const drone = useDrone()
-  const remote = drone.mode === 'remote'
+  const engineer = useEngineer()
+  const remote = drone.mode === 'remote' || engineer.turret.manual
 
   return (
     <>

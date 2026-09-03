@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { engineerStore } from '../state/engineerStore'
@@ -8,6 +8,8 @@ import { spawnTurretRound } from '../combat/Projectiles'
 import { crosshairGroundPoint } from '../combat/placement'
 import { playDeploy, playDry, playMinigunShot } from '../audio/sfx'
 import { useKeyBinding } from '../input/useKeyBinding'
+import { useMouseBinding } from '../input/useMouseBinding'
+import { triggerInputReset } from '../input/inputReset'
 
 const PLACE_MIN = 3
 const PLACE_MAX = 12
@@ -20,7 +22,7 @@ const PLACE_MAX = 12
  * - 无部署冷却与寿命；回收/部署时驱动四臂 BUSY 动画
  */
 export function SentryTurret() {
-  const { camera } = useThree()
+  const { camera, gl } = useThree()
   const root = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)
   const barrels = useRef<THREE.Group>(null!)
@@ -36,16 +38,74 @@ export function SentryTurret() {
   const alternate = useRef(false)
   const flashUntil = useRef(0)
   const _aim = useRef(new THREE.Vector3())
+  const _dir = useRef(new THREE.Vector3())
+  const _euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
+  const manualYaw = useRef(0)
+  const manualPitch = useRef(0)
+  const manualFiring = useRef(false)
+  const savedCamPos = useRef(new THREE.Vector3())
+  const savedCamQuat = useRef(new THREE.Quaternion())
+  const hasSavedCam = useRef(false)
 
   const message = (text: string) => {
     const s = rangeStore.getState()
     rangeStore.set({ message: text, messageId: s.messageId + 1 })
   }
 
+  const saveCamera = () => {
+    if (hasSavedCam.current) return
+    savedCamPos.current.copy(camera.position)
+    savedCamQuat.current.copy(camera.quaternion)
+    hasSavedCam.current = true
+  }
+
+  const restoreCamera = () => {
+    if (!hasSavedCam.current) return
+    camera.position.copy(savedCamPos.current)
+    camera.quaternion.copy(savedCamQuat.current)
+    hasSavedCam.current = false
+  }
+
+  const enterManual = () => {
+    const s = engineerStore.getState()
+    if (!s.turret.deployed) {
+      message('请先部署哨戒炮塔')
+      return
+    }
+    saveCamera()
+    manualYaw.current = yaw.current
+    manualPitch.current = 0
+    manualFiring.current = false
+    engineerStore.set({ turret: { ...s.turret, manual: true } })
+    triggerInputReset('context')
+    message('哨戒炮塔手动接管 · SENTRY LINK')
+  }
+
+  const exitManual = () => {
+    const s = engineerStore.getState()
+    if (!s.turret.manual) return
+    manualFiring.current = false
+    restoreCamera()
+    engineerStore.set({ turret: { ...s.turret, manual: false } })
+    triggerInputReset('context')
+    message('交还自动 · AUTO ENGAGE')
+  }
+
+  const toggleManual = () => {
+    if (engineerStore.getState().turret.manual) exitManual()
+    else enterManual()
+  }
+
   const deploy = () => {
     if (!rangeStore.getState().locked) return
     const s = engineerStore.getState()
     if (s.deploy.pending) return
+    if (s.turret.manual) {
+      // 手动遥控中按 3：退出手动并回收
+      exitManual()
+      recall()
+      return
+    }
     if (s.turret.deployed) {
       // 3 为部署/回收切换：已有一台时直接回收（不会出现第二台/替换）
       recall()
@@ -66,7 +126,8 @@ export function SentryTurret() {
   const recall = () => {
     const s = engineerStore.getState()
     if (!s.turret.deployed) return
-    engineerStore.set({ turret: { deployed: false, x: 0, z: 0 } })
+    if (s.turret.manual) restoreCamera()
+    engineerStore.set({ turret: { deployed: false, x: 0, z: 0, manual: false } })
     engineerStore.runArmsBusy(700)
     playDeploy()
     message('哨戒炮塔回收')
@@ -79,19 +140,68 @@ export function SentryTurret() {
     },
   })
 
-  // 1 = 收回全部：取消部署/回收炮塔 + 收起四臂（地雷不回收）
+  // 1 = 收回全部：取消部署/退出遥控/回收炮塔 + 收起四臂（地雷不回收）
   useKeyBinding('recallAll', {
     onDown: (e) => {
       if (e.repeat) return
-      if (engineerStore.getState().deploy.pending) {
+      const s0 = engineerStore.getState()
+      if (s0.deploy.pending) {
         engineerStore.cancelPendingDeploy()
         message('部署取消')
         return
       }
+      if (s0.turret.manual) exitManual()
       recall()
       engineerStore.set({ armsMode: 'stowed' })
     },
   })
+
+  // F = 炮塔手动遥控 / 自动 切换（类似 A 机器人 REMOTE，但不移动）
+  useKeyBinding('toggleTurretManual', {
+    onDown: (e) => {
+      if (e.repeat) return
+      toggleManual()
+    },
+  })
+
+  // 手动模式下左键开火（并请求指针锁定）
+  useMouseBinding('fire', {
+    contexts: ['turretRemote'],
+    onDown: () => {
+      const t = engineerStore.getState().turret
+      if (!t.manual || !t.deployed) return
+      if (!document.pointerLockElement && gl.domElement.requestPointerLock) {
+        gl.domElement.requestPointerLock()
+      }
+      manualFiring.current = true
+    },
+    onUp: () => {
+      manualFiring.current = false
+    },
+  })
+
+  // 手动遥控的鼠标视角 + contextmenu 屏蔽
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      const t = engineerStore.getState().turret
+      if (!t.manual || !t.deployed) return
+      if (!document.pointerLockElement) return
+      manualYaw.current -= e.movementX * 0.0021
+      manualPitch.current = THREE.MathUtils.clamp(manualPitch.current - e.movementY * 0.0021, -1.15, 0.9)
+    }
+    const onContextMenu = (e: Event) => {
+      if (rangeStore.getState().locked) e.preventDefault()
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('contextmenu', onContextMenu)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('contextmenu', onContextMenu)
+      // 卸载（换人）时还原 A/C 视角
+      if (engineerStore.getState().turret.manual) restoreCamera()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fire = (muzzle: THREE.Object3D | null, targetId: string) => {
     if (!muzzle) return
@@ -107,6 +217,19 @@ export function SentryTurret() {
     rangeStore.set({ shots: rs.shots + 1 })
   }
 
+  /** 手动遥控：按当前相机方向开火 */
+  const fireManual = (muzzle: THREE.Object3D | null) => {
+    if (!muzzle) return
+    const origin = new THREE.Vector3()
+    muzzle.getWorldPosition(origin)
+    camera.getWorldDirection(_dir.current)
+    const dir = _dir.current.clone()
+    spawnTurretRound(origin, dir)
+    playMinigunShot()
+    const rs = rangeStore.getState()
+    rangeStore.set({ shots: rs.shots + 1 })
+  }
+
   useFrame((state, dt) => {
     const s = engineerStore.getState()
     const now = performance.now()
@@ -115,7 +238,7 @@ export function SentryTurret() {
     const pending = s.deploy.pending
     if (pending && pending.kind === 'turret') {
       if (now >= pending.commitAt && !spawned.current) {
-        engineerStore.set({ turret: { deployed: true, x: pending.x, z: pending.z } })
+        engineerStore.set({ turret: { deployed: true, x: pending.x, z: pending.z, manual: false } })
         spawned.current = true
         playDeploy()
         message('机械臂装配中 · ASSEMBLING')
@@ -136,7 +259,7 @@ export function SentryTurret() {
 
     if (root.current) {
       root.current.position.set(t.x, 0, t.z)
-      root.current.visible = k > 0.02
+      root.current.visible = k > 0.02 && !t.manual
       const sc = 0.15 + k * 0.85
       root.current.scale.setScalar(sc)
     }
@@ -151,6 +274,30 @@ export function SentryTurret() {
         ;(buildRing.current.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.65
         buildRing.current.rotation.z += dt * 1.6
       }
+    }
+
+    // ---- 手动遥控：相机移到炮塔头部，鼠标瞄准，左键开火（不移动） ----
+    if (t.manual && head.current) {
+      const headPos = new THREE.Vector3()
+      head.current.getWorldPosition(headPos)
+      camera.position.copy(headPos)
+      _euler.current.set(manualPitch.current, manualYaw.current, 0)
+      camera.quaternion.setFromEuler(_euler.current)
+      camera.updateMatrixWorld()
+      head.current.rotation.y = manualYaw.current
+
+      fireTimer.current += dt
+      if (manualFiring.current && fireTimer.current >= 0.11) {
+        fireTimer.current = 0
+        alternate.current = !alternate.current
+        const muzzle = alternate.current ? leftMuzzle.current : rightMuzzle.current
+        fireManual(muzzle)
+        flashUntil.current = performance.now() + 55
+      }
+      if (leftFlash.current) leftFlash.current.visible = alternate.current && now < flashUntil.current
+      if (rightFlash.current) rightFlash.current.visible = !alternate.current && now < flashUntil.current
+      void state
+      return
     }
 
     if (!t.deployed || !head.current) return

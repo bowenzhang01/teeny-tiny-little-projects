@@ -13,6 +13,7 @@ import { CommsPanel } from '../widgets/CommsPanel'
 import { ControlHints } from '../widgets/ControlHints'
 import { CONTROL_HINTS } from '../../input/inputMap'
 import { useKeyBinding } from '../../input/useKeyBinding'
+import { SentryHud } from './SentryHud'
 
 const C_DECO_POOL = ['C // FORGE-03', 'PLASMA CAL 0.04', 'ARMS STANDBY', 'NET 97%', 'DEPLOY LINK OK', 'SAT 4/7']
 
@@ -79,6 +80,9 @@ export function CHud({ ready }: { ready: boolean }) {
   useEffect(() => {
     document.body.classList.toggle('nv', nv)
   }, [nv])
+
+  // 哨戒炮塔手动遥控：切到 SENTRY LINK 全屏 HUD
+  if (e.turret.manual) return <SentryHud ready={ready} />
 
   const energyPct = Math.round(e.plasma.energy)
   const heatPct = Math.round(e.plasma.heat * 100)

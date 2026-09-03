@@ -135,7 +135,8 @@ export function PlasmaLaser() {
       })
     }
 
-    const wantFire = firing.current && rs.locked && !e.venting && energy.current > 0
+    const manual = engineerStore.getState().turret.manual
+    const wantFire = firing.current && rs.locked && !e.venting && energy.current > 0 && !manual
 
     // 能量与热度（写回 store 节流，避免 HUD 每帧重渲染）
     if (wantFire) {
@@ -157,6 +158,8 @@ export function PlasmaLaser() {
 
     follower.current.position.copy(camera.position)
     follower.current.quaternion.copy(camera.quaternion)
+    // 炮塔手动遥控时隐藏 C 本体持枪模型
+    follower.current.visible = !manual
 
     camera.getWorldDirection(_dir.current)
     const dir = _dir.current.clone()
