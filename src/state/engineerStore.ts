@@ -32,13 +32,14 @@ export interface EngineerState {
     barrierCapacity: number
     /** 库存自动补充时间戳（performance.now 基准） */
     replenishAt: number
-    /** 进行中的部署动作：四臂先伸手，到 commitAt 后部署物才出现 */
+    /** 进行中的部署动作：四臂先伸手，然后操作部署物装配，最后收回 */
     pending: null | {
       id: string
       kind: 'turret' | 'mine' | 'barrier'
       x: number
       z: number
       commitAt: number
+      operateUntil: number
     }
   }
 }
@@ -104,15 +105,22 @@ export const engineerStore = {
       }
     }, ms)
   },
-  /** 开始一次部署：四臂先伸手，部署物在 commitAt 时才出现 */
-  beginDeploy(kind: 'turret' | 'mine' | 'barrier', x: number, z: number, commitDelay = 700): string {
+  /** 开始一次部署：四臂先伸手（commitAt），再对部署物操作（operateUntil） */
+  beginDeploy(
+    kind: 'turret' | 'mine' | 'barrier',
+    x: number,
+    z: number,
+    commitDelay = 700,
+    operateDuration = 1000,
+  ): string {
     const id = `deploy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const commitAt = performance.now() + commitDelay
     state = {
       ...state,
       armsMode: 'busy',
       deploy: {
         ...state.deploy,
-        pending: { id, kind, x, z, commitAt: performance.now() + commitDelay },
+        pending: { id, kind, x, z, commitAt, operateUntil: commitAt + operateDuration },
       },
     }
     emit()

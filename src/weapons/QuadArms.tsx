@@ -30,6 +30,8 @@ export function QuadArms() {
   const forearmSegs = useRef<(THREE.Group | null)[]>([])
   const armsK = useRef(0)
   const busyK = useRef(0)
+  const _v = useRef(new THREE.Vector3())
+  const _inv = useRef(new THREE.Quaternion())
 
   const toggleArms = () => {
     const s = engineerStore.getState()
@@ -54,6 +56,7 @@ export function QuadArms() {
     const s = engineerStore.getState()
     const mode = s.armsMode
     const pending = s.deploy.pending
+    const now = performance.now()
     const targetMode = mode === 'stowed' ? 0 : 1
     const busyTarget = mode === 'busy' || pending ? 1 : 0
     armsK.current = THREE.MathUtils.damp(armsK.current, targetMode, 7, dt)
@@ -61,9 +64,24 @@ export function QuadArms() {
 
     const open = armsK.current
     const reach = busyK.current
+    const work = pending && now >= pending.commitAt ? 1 : 0
     follower.current.position.copy(camera.position)
     follower.current.quaternion.copy(camera.quaternion)
     follower.current.visible = open > 0.02
+
+    // 部署目标在相机局部空间的坐标：让四臂汇聚到部署物方向
+    let aimX = 0
+    let aimY = -0.3
+    let aimZ = -0.68
+    if (pending) {
+      _inv.current.copy(camera.quaternion).invert()
+      _v.current
+        .set(pending.x - camera.position.x, 0.22 - camera.position.y, pending.z - camera.position.z)
+        .applyQuaternion(_inv.current)
+      aimX = THREE.MathUtils.clamp(_v.current.x * 0.55, -0.42, 0.42)
+      aimY = THREE.MathUtils.clamp(_v.current.y * 0.55, -0.62, -0.1)
+      aimZ = THREE.MathUtils.clamp(_v.current.z, -0.95, -0.3)
+    }
 
     for (let i = 0; i < ARMS.length; i++) {
       const cfg = ARMS[i]
@@ -74,25 +92,33 @@ export function QuadArms() {
 
       const idle = Math.sin(state.clock.elapsedTime * 2 + i * 1.2) * 0.025 * open
       const baseX = cfg.side * THREE.MathUtils.lerp(0.3, 0.55, open)
+      const baseY = THREE.MathUtils.lerp(-0.48, -0.3, open)
+      const baseZ = THREE.MathUtils.lerp(0.2, -0.52, open)
+      const blend = reach * 0.78
+
       root.position.set(
-        baseX * (1 - reach * 0.4),
-        THREE.MathUtils.lerp(-0.48, -0.3, open) - reach * 0.08,
-        THREE.MathUtils.lerp(0.2, -0.52, open) - reach * 0.3,
+        THREE.MathUtils.lerp(baseX, aimX, blend),
+        THREE.MathUtils.lerp(baseY, aimY, blend),
+        THREE.MathUtils.lerp(baseZ, aimZ, blend),
       )
       root.rotation.set(
-        THREE.MathUtils.lerp(0, -0.3, reach) + idle,
+        THREE.MathUtils.lerp(0, -0.3, reach) + idle + Math.sin(state.clock.elapsedTime * 8 + i * 1.5) * 0.08 * work,
         cfg.side * THREE.MathUtils.lerp(0.5, 0.08, open) - reach * cfg.side * 0.2,
         cfg.side * THREE.MathUtils.lerp(0.3, 0.08, open) + idle,
       )
       root.scale.setScalar(0.26 + open * 0.78)
 
       if (upper) {
-        upper.rotation.x = THREE.MathUtils.lerp(0, -0.3, reach) + idle * 0.6
-        upper.rotation.z = cfg.side * THREE.MathUtils.lerp(0.18, 0.05, open)
+        upper.rotation.x =
+          THREE.MathUtils.lerp(0, -0.3, reach) + idle * 0.6 + Math.sin(state.clock.elapsedTime * 9 + i * 1.7) * 0.13 * work
+        upper.rotation.z =
+          cfg.side * THREE.MathUtils.lerp(0.18, 0.05, open) + Math.cos(state.clock.elapsedTime * 7 + i) * 0.06 * work
       }
       if (forearm) {
-        forearm.rotation.x = THREE.MathUtils.lerp(0, 0.42, reach) + idle * 0.8
-        forearm.rotation.z = cfg.side * THREE.MathUtils.lerp(-0.12, -0.03, open)
+        forearm.rotation.x =
+          THREE.MathUtils.lerp(0, 0.42, reach) + idle * 0.8 + Math.sin(state.clock.elapsedTime * 11 + i * 1.3) * 0.16 * work
+        forearm.rotation.z =
+          cfg.side * THREE.MathUtils.lerp(-0.12, -0.03, open) - Math.sin(state.clock.elapsedTime * 10 + i) * 0.05 * work
       }
     }
   })

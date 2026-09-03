@@ -28,7 +28,9 @@ export function SentryTurret() {
   const rightMuzzle = useRef<THREE.Object3D>(null!)
   const leftFlash = useRef<THREE.Mesh>(null!)
   const rightFlash = useRef<THREE.Mesh>(null!)
+  const buildRing = useRef<THREE.Mesh>(null!)
   const deployK = useRef(0)
+  const spawned = useRef(false)
   const yaw = useRef(0)
   const fireTimer = useRef(0)
   const alternate = useRef(false)
@@ -55,8 +57,8 @@ export function SentryTurret() {
       playDry()
       return
     }
-    // 先让四臂伸手，commitAt 后炮塔才出现
-    engineerStore.beginDeploy('turret', p.x, p.z, 700)
+    // 先让四臂伸手，commitAt 后炮塔装配出现，operateUntil 后四臂收回
+    engineerStore.beginDeploy('turret', p.x, p.z, 700, 1100)
     playDeploy()
     message('机械臂展开 · 炮塔部署中…')
   }
@@ -109,13 +111,22 @@ export function SentryTurret() {
     const s = engineerStore.getState()
     const now = performance.now()
 
-    // 部署动作 commit：四臂伸手完成后炮塔才出现
+    // 部署动作 commit：四臂伸手后炮塔装配出现，操作完成后再收回
     const pending = s.deploy.pending
-    if (pending && pending.kind === 'turret' && now >= pending.commitAt) {
-      engineerStore.set({ turret: { deployed: true, x: pending.x, z: pending.z } })
-      engineerStore.commitDeploy(pending.id)
-      playDeploy()
-      message('哨戒炮塔部署 · SENTRY ONLINE')
+    if (pending && pending.kind === 'turret') {
+      if (now >= pending.commitAt && !spawned.current) {
+        engineerStore.set({ turret: { deployed: true, x: pending.x, z: pending.z } })
+        spawned.current = true
+        playDeploy()
+        message('机械臂装配中 · ASSEMBLING')
+      }
+      if (now >= pending.operateUntil) {
+        engineerStore.commitDeploy(pending.id)
+        spawned.current = false
+        message('哨戒炮塔就绪 · SENTRY ONLINE')
+      }
+    } else {
+      spawned.current = false
     }
 
     const t = s.turret
@@ -128,6 +139,18 @@ export function SentryTurret() {
       root.current.visible = k > 0.02
       const sc = 0.15 + k * 0.85
       root.current.scale.setScalar(sc)
+    }
+
+    // 装配光环：炮塔出现到完全成型期间显示旋转琥珀环
+    if (buildRing.current) {
+      const assembling = t.deployed && k < 0.98
+      buildRing.current.visible = assembling
+      if (assembling) {
+        buildRing.current.position.y = 0.45
+        buildRing.current.scale.setScalar(1 + (1 - k) * 2.2)
+        ;(buildRing.current.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.65
+        buildRing.current.rotation.z += dt * 1.6
+      }
     }
 
     if (!t.deployed || !head.current) return
@@ -185,6 +208,12 @@ export function SentryTurret() {
       <mesh position={[0, 0.36, 0]} rotation={[Math.PI / 2, 0, 0]} userData={{ kind: 'fx' }}>
         <torusGeometry args={[0.42, 0.025, 8, 20]} />
         <meshStandardMaterial color="#22262d" metalness={0.85} roughness={0.3} />
+      </mesh>
+
+      {/* 装配光环 */}
+      <mesh ref={buildRing} position={[0, 0.45, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[0.6, 0.68, 32]} />
+        <meshBasicMaterial color="#ffd166" transparent opacity={0} toneMapped={false} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
       {/* 回转头部 */}

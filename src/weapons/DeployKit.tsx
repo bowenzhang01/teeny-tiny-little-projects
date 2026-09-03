@@ -13,6 +13,7 @@ interface PlacedMine {
   id: string
   mesh: THREE.Group
   pos: THREE.Vector3
+  birthAt: number
 }
 
 interface PlacedBarrier {
@@ -20,6 +21,7 @@ interface PlacedBarrier {
   mesh: THREE.Group
   pos: THREE.Vector3
   box: THREE.Box3
+  birthAt: number
 }
 
 interface Burst {
@@ -50,6 +52,7 @@ export function DeployKit() {
   const barriers = useRef<PlacedBarrier[]>([])
   const bursts = useRef<Burst[]>([])
   const nextId = useRef(1)
+  const spawned = useRef<string | null>(null)
   const _aim = useRef(new THREE.Vector3())
 
   const message = (text: string) => {
@@ -119,14 +122,14 @@ export function DeployKit() {
         playDry()
         return
       }
-      engineerStore.beginDeploy('mine', p.x, p.z, 620)
+      engineerStore.beginDeploy('mine', p.x, p.z, 620, 950)
     } else {
       if (s.deploy.barriers <= 0) {
         message('屏障耗尽 · 待补充')
         playDry()
         return
       }
-      engineerStore.beginDeploy('barrier', p.x, p.z, 750)
+      engineerStore.beginDeploy('barrier', p.x, p.z, 750, 1050)
     }
     playDeploy()
     message('机械臂展开 · 部署中…')
@@ -218,59 +221,79 @@ export function DeployKit() {
     const now = performance.now()
     const s = engineerStore.getState()
 
-    // 部署动作 commit：四臂伸手完成后，地雷/屏障才出现
+    // 部署动作：四臂先伸手（commitAt），随后操作地雷/屏障装配（operateUntil）
     const pending = s.deploy.pending
-    if (pending && now >= pending.commitAt) {
-      if (pending.kind === 'mine') {
+    if (pending && (pending.kind === 'mine' || pending.kind === 'barrier')) {
+      if (now >= pending.commitAt && spawned.current !== pending.id) {
+        spawned.current = pending.id
         const cur = engineerStore.getState()
-        if (cur.deploy.mines > 0) {
-          const mesh = createMine()
-          mesh.position.set(pending.x, 0.03, pending.z)
-          group.current.add(mesh)
-          const id = `mine-${nextId.current++}`
-          mines.current.push({ id, mesh, pos: new THREE.Vector3(pending.x, 0.03, pending.z) })
-          deployRegistry.register({
-            id,
-            kind: 'mine',
-            position: new THREE.Vector3(pending.x, 0, pending.z),
-            radius: 0.3,
-          })
-          engineerStore.set({
-            deploy: {
-              ...cur.deploy,
-              mines: cur.deploy.mines - 1,
-              replenishAt: performance.now() + 6000,
-            },
-          })
-          message('地雷部署 · MINE ARMED')
+        if (pending.kind === 'mine') {
+          if (cur.deploy.mines > 0) {
+            const mesh = createMine()
+            mesh.scale.setScalar(0.12)
+            mesh.position.set(pending.x, 0.42, pending.z)
+            group.current.add(mesh)
+            const id = `mine-${nextId.current++}`
+            mines.current.push({
+              id,
+              mesh,
+              pos: new THREE.Vector3(pending.x, 0, pending.z),
+              birthAt: now,
+            })
+            deployRegistry.register({
+              id,
+              kind: 'mine',
+              position: new THREE.Vector3(pending.x, 0, pending.z),
+              radius: 0.3,
+            })
+            engineerStore.set({
+              deploy: {
+                ...cur.deploy,
+                mines: cur.deploy.mines - 1,
+                replenishAt: now + 6000,
+              },
+            })
+          }
+          message('机械臂操作 · 布雷中…')
+        } else {
+          if (cur.deploy.barriers > 0) {
+            const mesh = createBarrier()
+            mesh.scale.set(1, 0.06, 1)
+            mesh.position.set(pending.x, 0, pending.z)
+            group.current.add(mesh)
+            const id = `barrier-${nextId.current++}`
+            const box = new THREE.Box3().setFromObject(mesh).clone().expandByScalar(0.06)
+            barriers.current.push({
+              id,
+              mesh,
+              pos: new THREE.Vector3(pending.x, 0, pending.z),
+              box,
+              birthAt: now,
+            })
+            deployRegistry.register({
+              id,
+              kind: 'barrier',
+              position: new THREE.Vector3(pending.x, 0, pending.z),
+              radius: 0.12,
+            })
+            engineerStore.set({
+              deploy: {
+                ...cur.deploy,
+                barriers: cur.deploy.barriers - 1,
+                replenishAt: now + 6000,
+              },
+            })
+          }
+          message('机械臂操作 · 架设屏障中…')
         }
-        engineerStore.commitDeploy(pending.id)
-      } else if (pending.kind === 'barrier') {
-        const cur = engineerStore.getState()
-        if (cur.deploy.barriers > 0) {
-          const mesh = createBarrier()
-          mesh.position.set(pending.x, 0, pending.z)
-          group.current.add(mesh)
-          const id = `barrier-${nextId.current++}`
-          const box = new THREE.Box3().setFromObject(mesh).clone().expandByScalar(0.06)
-          barriers.current.push({ id, mesh, pos: new THREE.Vector3(pending.x, 0, pending.z), box })
-          deployRegistry.register({
-            id,
-            kind: 'barrier',
-            position: new THREE.Vector3(pending.x, 0, pending.z),
-            radius: 0.12,
-          })
-          engineerStore.set({
-            deploy: {
-              ...cur.deploy,
-              barriers: cur.deploy.barriers - 1,
-              replenishAt: performance.now() + 6000,
-            },
-          })
-          message('屏障部署 · BARRIER UP')
-        }
-        engineerStore.commitDeploy(pending.id)
       }
+      if (now >= pending.operateUntil) {
+        engineerStore.commitDeploy(pending.id)
+        spawned.current = null
+        message(pending.kind === 'mine' ? '地雷部署 · MINE ARMED' : '屏障部署 · BARRIER UP')
+      }
+    } else {
+      spawned.current = null
     }
 
     // 部署范围指示：准星落点处显示琥珀/红色环形（3~12M）
@@ -320,13 +343,19 @@ export function DeployKit() {
       }
     }
 
-    // 地雷/屏障闲置微动画
+    // 地雷/屏障装配动画 + 闲置微动画
     const pulse = 0.75 + Math.sin(state.clock.elapsedTime * 5) * 0.25
     for (const m of mines.current) {
+      const b = Math.min(1, (now - m.birthAt) / 650)
+      m.mesh.scale.setScalar(0.12 + 0.88 * b)
+      m.mesh.position.y = THREE.MathUtils.lerp(0.42, 0.03, b)
       const lamp = m.mesh.children[2] as THREE.Mesh
       ;(lamp.material as THREE.MeshBasicMaterial).color.setRGB(pulse, pulse * 0.7, pulse * 0.35)
     }
-    void now
+    for (const b of barriers.current) {
+      const t = Math.min(1, (now - b.birthAt) / 850)
+      b.mesh.scale.set(1, Math.max(0.06, t), 1)
+    }
   })
 
   // 卸载（换人）时清空部署注册表
