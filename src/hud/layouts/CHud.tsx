@@ -152,7 +152,7 @@ export function CHud({ ready }: { ready: boolean }) {
         <section className="c-panel deploy">
           <header className="c-panel-head">
             <h3>DEPLOY // BLUEPRINT</h3>
-            <em>4 CYCLE · G PLACE</em>
+            <em>4 CYCLE · G PLACE · 3-12M</em>
           </header>
           <div className="c-deploy-slots">
             <div className={`c-slot ${e.deploy.blueprint === 'mine' ? 'active' : ''}`}>

@@ -31,6 +31,9 @@ interface Burst {
   life: number
 }
 
+const PLACE_MIN = 3
+const PLACE_MAX = 12
+
 /**
  * C 部署包（C-5）：
  * - 4 切换蓝图（地雷 / 屏障）；G 对准星落点放置（3~12m）
@@ -42,6 +45,7 @@ interface Burst {
 export function DeployKit() {
   const { camera } = useThree()
   const group = useRef<THREE.Group>(null!)
+  const rangeRing = useRef<THREE.Mesh>(null!)
   const mines = useRef<PlacedMine[]>([])
   const barriers = useRef<PlacedBarrier[]>([])
   const bursts = useRef<Burst[]>([])
@@ -99,6 +103,10 @@ export function DeployKit() {
   const place = () => {
     if (!rangeStore.getState().locked) return
     const s = engineerStore.getState()
+    if (s.deploy.pending) {
+      message('部署进行中…')
+      return
+    }
     const p = crosshairGroundPoint(camera)
     if (!p) {
       message('部署范围 3-12M · 请对准地面')
@@ -111,38 +119,17 @@ export function DeployKit() {
         playDry()
         return
       }
-      const mesh = createMine()
-      mesh.position.set(p.x, 0.03, p.z)
-      group.current.add(mesh)
-      const id = `mine-${nextId.current++}`
-      mines.current.push({ id, mesh, pos: p.clone() })
-      deployRegistry.register({ id, kind: 'mine', position: p.clone(), radius: 0.3 })
-      engineerStore.set({
-        deploy: { ...s.deploy, mines: s.deploy.mines - 1, replenishAt: performance.now() + 6000 },
-      })
-      engineerStore.runArmsBusy(500)
-      playDeploy()
-      message('地雷部署 · MINE ARMED')
+      engineerStore.beginDeploy('mine', p.x, p.z, 620)
     } else {
       if (s.deploy.barriers <= 0) {
         message('屏障耗尽 · 待补充')
         playDry()
         return
       }
-      const mesh = createBarrier()
-      mesh.position.set(p.x, 0, p.z)
-      group.current.add(mesh)
-      const id = `barrier-${nextId.current++}`
-      const box = new THREE.Box3().setFromObject(mesh).clone().expandByScalar(0.06)
-      barriers.current.push({ id, mesh, pos: p.clone(), box })
-      deployRegistry.register({ id, kind: 'barrier', position: p.clone(), radius: 0.12 })
-      engineerStore.set({
-        deploy: { ...s.deploy, barriers: s.deploy.barriers - 1, replenishAt: performance.now() + 6000 },
-      })
-      engineerStore.runArmsBusy(600)
-      playDeploy()
-      message('屏障部署 · BARRIER UP')
+      engineerStore.beginDeploy('barrier', p.x, p.z, 750)
     }
+    playDeploy()
+    message('机械臂展开 · 部署中…')
   }
 
   const detonate = () => {
@@ -231,6 +218,79 @@ export function DeployKit() {
     const now = performance.now()
     const s = engineerStore.getState()
 
+    // 部署动作 commit：四臂伸手完成后，地雷/屏障才出现
+    const pending = s.deploy.pending
+    if (pending && now >= pending.commitAt) {
+      if (pending.kind === 'mine') {
+        const cur = engineerStore.getState()
+        if (cur.deploy.mines > 0) {
+          const mesh = createMine()
+          mesh.position.set(pending.x, 0.03, pending.z)
+          group.current.add(mesh)
+          const id = `mine-${nextId.current++}`
+          mines.current.push({ id, mesh, pos: new THREE.Vector3(pending.x, 0.03, pending.z) })
+          deployRegistry.register({
+            id,
+            kind: 'mine',
+            position: new THREE.Vector3(pending.x, 0, pending.z),
+            radius: 0.3,
+          })
+          engineerStore.set({
+            deploy: {
+              ...cur.deploy,
+              mines: cur.deploy.mines - 1,
+              replenishAt: performance.now() + 6000,
+            },
+          })
+          message('地雷部署 · MINE ARMED')
+        }
+        engineerStore.commitDeploy(pending.id)
+      } else if (pending.kind === 'barrier') {
+        const cur = engineerStore.getState()
+        if (cur.deploy.barriers > 0) {
+          const mesh = createBarrier()
+          mesh.position.set(pending.x, 0, pending.z)
+          group.current.add(mesh)
+          const id = `barrier-${nextId.current++}`
+          const box = new THREE.Box3().setFromObject(mesh).clone().expandByScalar(0.06)
+          barriers.current.push({ id, mesh, pos: new THREE.Vector3(pending.x, 0, pending.z), box })
+          deployRegistry.register({
+            id,
+            kind: 'barrier',
+            position: new THREE.Vector3(pending.x, 0, pending.z),
+            radius: 0.12,
+          })
+          engineerStore.set({
+            deploy: {
+              ...cur.deploy,
+              barriers: cur.deploy.barriers - 1,
+              replenishAt: performance.now() + 6000,
+            },
+          })
+          message('屏障部署 · BARRIER UP')
+        }
+        engineerStore.commitDeploy(pending.id)
+      }
+    }
+
+    // 部署范围指示：准星落点处显示琥珀/红色环形（3~12M）
+    const rs = rangeStore.getState()
+    const guide = rs.locked ? crosshairGroundPoint(camera, 0, 100) : null
+    if (rangeRing.current) {
+      if (guide) {
+        rangeRing.current.visible = true
+        rangeRing.current.position.set(guide.x, 0.035, guide.z)
+        const dist = guide.distanceTo(camera.position)
+        const ok = dist >= PLACE_MIN && dist <= PLACE_MAX
+        const mat = rangeRing.current.material as THREE.MeshBasicMaterial
+        mat.color.set(ok ? '#ffb54d' : '#ff4d3c')
+        mat.opacity = ok ? 0.62 : 0.45
+        rangeRing.current.scale.setScalar(0.9 + Math.sin(state.clock.elapsedTime * 3) * 0.06)
+      } else {
+        rangeRing.current.visible = false
+      }
+    }
+
     // 地雷/屏障库存自动补满
     if (s.deploy.replenishAt > 0 && now >= s.deploy.replenishAt) {
       engineerStore.set({
@@ -276,5 +336,14 @@ export function DeployKit() {
     }
   }, [])
 
-  return <group ref={group} name="c-deployables" />
+  return (
+    <>
+      <group ref={group} name="c-deployables" />
+      {/* 部署范围指示环（世界空间，跟随准星地面落点） */}
+      <mesh ref={rangeRing} visible={false} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.85, 1.0, 40]} />
+        <meshBasicMaterial color="#ffb54d" transparent opacity={0.6} toneMapped={false} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+    </>
+  )
 }

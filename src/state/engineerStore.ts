@@ -32,6 +32,14 @@ export interface EngineerState {
     barrierCapacity: number
     /** 库存自动补充时间戳（performance.now 基准） */
     replenishAt: number
+    /** 进行中的部署动作：四臂先伸手，到 commitAt 后部署物才出现 */
+    pending: null | {
+      id: string
+      kind: 'turret' | 'mine' | 'barrier'
+      x: number
+      z: number
+      commitAt: number
+    }
   }
 }
 
@@ -55,6 +63,7 @@ function makeInitial(): EngineerState {
       barriers: 3,
       barrierCapacity: 3,
       replenishAt: 0,
+      pending: null,
     },
   }
 }
@@ -94,6 +103,41 @@ export const engineerStore = {
         emit()
       }
     }, ms)
+  },
+  /** 开始一次部署：四臂先伸手，部署物在 commitAt 时才出现 */
+  beginDeploy(kind: 'turret' | 'mine' | 'barrier', x: number, z: number, commitDelay = 700): string {
+    const id = `deploy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    state = {
+      ...state,
+      armsMode: 'busy',
+      deploy: {
+        ...state.deploy,
+        pending: { id, kind, x, z, commitAt: performance.now() + commitDelay },
+      },
+    }
+    emit()
+    return id
+  },
+  /** 部署动作完成：清掉 pending，四臂稍作停留后回到 OPERATE */
+  commitDeploy(id: string) {
+    const pending = state.deploy.pending
+    if (!pending || pending.id !== id) return
+    state = { ...state, deploy: { ...state.deploy, pending: null } }
+    emit()
+    if (state.armsMode === 'busy') {
+      window.setTimeout(() => {
+        if (state.armsMode === 'busy') {
+          state = { ...state, armsMode: 'operate' }
+          emit()
+        }
+      }, 380)
+    }
+  },
+  /** 取消进行中的部署（1 收回全部时使用）：清 pending 并收起四臂 */
+  cancelPendingDeploy() {
+    if (!state.deploy.pending) return
+    state = { ...state, deploy: { ...state.deploy, pending: null }, armsMode: 'stowed' }
+    emit()
   },
   reset() {
     state = makeInitial()

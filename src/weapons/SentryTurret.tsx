@@ -43,6 +43,7 @@ export function SentryTurret() {
   const deploy = () => {
     if (!rangeStore.getState().locked) return
     const s = engineerStore.getState()
+    if (s.deploy.pending) return
     if (s.turret.deployed) {
       // 3 为部署/回收切换：已有一台时直接回收（不会出现第二台/替换）
       recall()
@@ -54,10 +55,10 @@ export function SentryTurret() {
       playDry()
       return
     }
-    engineerStore.set({ turret: { deployed: true, x: p.x, z: p.z } })
-    engineerStore.runArmsBusy(850)
+    // 先让四臂伸手，commitAt 后炮塔才出现
+    engineerStore.beginDeploy('turret', p.x, p.z, 700)
     playDeploy()
-    message('哨戒炮塔部署 · SENTRY ONLINE')
+    message('机械臂展开 · 炮塔部署中…')
   }
 
   const recall = () => {
@@ -76,10 +77,15 @@ export function SentryTurret() {
     },
   })
 
-  // 1 = 收回全部：回收炮塔 + 收起四臂（地雷不回收）
+  // 1 = 收回全部：取消部署/回收炮塔 + 收起四臂（地雷不回收）
   useKeyBinding('recallAll', {
     onDown: (e) => {
       if (e.repeat) return
+      if (engineerStore.getState().deploy.pending) {
+        engineerStore.cancelPendingDeploy()
+        message('部署取消')
+        return
+      }
       recall()
       engineerStore.set({ armsMode: 'stowed' })
     },
@@ -101,6 +107,17 @@ export function SentryTurret() {
 
   useFrame((state, dt) => {
     const s = engineerStore.getState()
+    const now = performance.now()
+
+    // 部署动作 commit：四臂伸手完成后炮塔才出现
+    const pending = s.deploy.pending
+    if (pending && pending.kind === 'turret' && now >= pending.commitAt) {
+      engineerStore.set({ turret: { deployed: true, x: pending.x, z: pending.z } })
+      engineerStore.commitDeploy(pending.id)
+      playDeploy()
+      message('哨戒炮塔部署 · SENTRY ONLINE')
+    }
+
     const t = s.turret
     const targetK = t.deployed ? 1 : 0
     deployK.current = THREE.MathUtils.damp(deployK.current, targetK, 6, dt)
@@ -152,7 +169,6 @@ export function SentryTurret() {
 
     if (head.current) head.current.rotation.y = yaw.current
     if (barrels.current) barrels.current.rotation.x = THREE.MathUtils.damp(barrels.current.rotation.x, 0, 10, dt)
-    const now = performance.now()
     if (leftFlash.current) leftFlash.current.visible = alternate.current && now < flashUntil.current
     if (rightFlash.current) rightFlash.current.visible = !alternate.current && now < flashUntil.current
 
