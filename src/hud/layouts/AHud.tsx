@@ -13,6 +13,9 @@ import { ExoPanel } from '../widgets/ExoPanel'
 import { CommsPanel } from '../widgets/CommsPanel'
 import { DronePanel } from '../widgets/DronePanel'
 import { DroneHud } from './DroneHud'
+import { ControlHints } from '../widgets/ControlHints'
+import { CONTROL_HINTS } from '../../input/inputMap'
+import { useKeyBinding } from '../../input/useKeyBinding'
 
 const A_DECO_POOL = ['A // OPS LINK', 'LASER CAL 0.02', 'CIWS ARMED', 'MAG SENSOR OK', 'NET 98%', 'SAT 4/7']
 
@@ -106,15 +109,15 @@ export function AHud({ ready }: { ready: boolean }) {
     return () => window.clearInterval(timer)
   }, [])
 
-  // 夜视（N）：A HUD 也支持
+  // 夜视（N）：A HUD 也支持（P1：统一按键分发；遥控上下文不切换夜视）
   const [nv, setNv] = useState(false)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'KeyN') setNv((v) => !v)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useKeyBinding('nightVision', {
+    contexts: ['roleHud'],
+    onDown: (e) => {
+      if (e.repeat) return
+      setNv((v) => !v)
+    },
+  })
   useEffect(() => {
     document.body.classList.toggle('nv', nv)
   }, [nv])
@@ -235,14 +238,8 @@ export function AHud({ ready }: { ready: boolean }) {
         <CommsPanel squad="SQ-A" activeId="A" />
       </aside>
 
-      {/* 左下：操作提示（A 专属键位） */}
-      <aside className="a-controls">
-        <span><b>LMB</b> FIRE</span>
-        <span><b>RMB</b> STABILIZE</span>
-        <span><b>R</b> RELOAD</span>
-        <span><b>G</b> GRENADE</span>
-        <span><b>T</b> CYCLE</span>
-      </aside>
+      {/* 左下：操作提示（P1：键表驱动，替换写死键位） */}
+      <ControlHints className="a-controls" items={CONTROL_HINTS.roleA} />
 
       {/* 中央：锐角准星 + 锁定 */}
       <div className="a-center">

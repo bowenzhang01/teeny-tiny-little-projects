@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnRailBolt } from '../combat/Projectiles'
 import { playDry, playRailCharge, playRailShot } from '../audio/sfx'
+import { useKeyBinding } from '../input/useKeyBinding'
+import { useInputReset } from '../input/useInputReset'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 /**
  * 电磁轨道炮（背部左侧）：
@@ -29,7 +32,12 @@ export function Railgun() {
 
   const canFire = () => {
     const s = rangeStore.getState()
-    return s.locked && s.railgunDeployed && performance.now() >= s.railgunCooldownUntil
+    return (
+      s.locked &&
+      s.railgunDeployed &&
+      performance.now() >= s.railgunCooldownUntil &&
+      performance.now() >= s.weaponBusyUntil
+    )
   }
 
   const startCharge = () => {
@@ -71,35 +79,29 @@ export function Railgun() {
     if (recoil.current) recoil.current.position.z = 0.14
   }
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyQ') return
-      if (rangeStore.getState().locked && rangeStore.getState().railgunDeployed) startCharge()
-    }
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyQ') return
-      fireRailgun()
-    }
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return
+  // P1：统一按键分发（Q 长按充能 / 松开发射）
+  useKeyBinding('chargeRailgun', {
+    onDown: () => {
+      const s = rangeStore.getState()
+      if (s.locked && s.railgunDeployed) startCharge()
+    },
+    onUp: () => fireRailgun(),
+  })
+
+  // P0：失焦 / 锁丢失 / 换人时取消充能（防 Q keyup 丢失导致一直充能）
+  useInputReset(() => {
+    charging.current = false
+    rangeStore.set({ railgunCharging: false })
+  })
+
+  // P1：统一鼠标分发（仅轨道炮展开、且六管未展开时，左键也可充能）
+  useMouseBinding('fire', {
+    onDown: () => {
       const s = rangeStore.getState()
       if (s.locked && s.railgunDeployed && !s.minigunDeployed) startCharge()
-    }
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button !== 0) return
-      fireRailgun()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
+    },
+    onUp: () => fireRailgun(),
+  })
 
   useFrame((state, dt) => {
     if (!follower.current || !root.current) return

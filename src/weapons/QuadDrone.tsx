@@ -6,6 +6,9 @@ import { droneStore, type DroneAiState } from '../state/droneStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnDroneMissile, spawnDroneRound } from '../combat/Projectiles'
 import { playDeploy, playDry, playLmgShot, playRailShot } from '../audio/sfx'
+import { useKeyBinding } from '../input/useKeyBinding'
+import { useInputReset } from '../input/useInputReset'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 /**
  * A 突击兵背载四足机器人（占位编号 Q-01）。
@@ -69,6 +72,14 @@ export function QuadDrone() {
 
   const isRemote = () => droneStore.getState().mode === 'remote'
 
+  /** 清空遥控时的所有按下状态（键集合 + 鼠标 + HUD firing 标志） */
+  const clearHeldInput = () => {
+    keys.current.clear()
+    mouseDown.current = false
+    const s = droneStore.getState()
+    if (s.mgFiring) droneStore.set({ mgFiring: false })
+  }
+
   const saveCamera = () => {
     if (hasSavedCam.current) return
     savedCamPos.current.copy(camera.position)
@@ -89,24 +100,30 @@ export function QuadDrone() {
   }
 
   const enterRemote = () => {
+    clearHeldInput()
     saveCamera()
     aiStateRef.current = 'REMOTE'
     droneStore.set({ mode: 'remote', aiState: 'REMOTE' })
+    rangeStore.set({ weaponBusyUntil: performance.now() + 300 })
   }
 
   const exitRemote = () => {
+    clearHeldInput()
     restoreCamera()
     syncLockAfterExit()
     droneStore.set({ mode: 'auto', aiState: aiStateRef.current })
+    rangeStore.set({ weaponBusyUntil: performance.now() + 300 })
   }
 
   const beginStow = () => {
+    clearHeldInput()
     if (droneStore.getState().mode === 'remote') {
       restoreCamera()
       syncLockAfterExit()
     }
     aiStateRef.current = 'STOWING'
     droneStore.set({ mode: 'stowing', mgFiring: false, aiState: 'STOWING' })
+    rangeStore.set({ weaponBusyUntil: performance.now() + 400 })
     playDeploy()
   }
 
@@ -118,6 +135,7 @@ export function QuadDrone() {
         yaw.current = 0
         aiStateRef.current = 'PATROL'
         droneStore.set({ mode: 'auto', aiState: 'PATROL' })
+        rangeStore.set({ weaponBusyUntil: performance.now() + 400 })
         playDeploy()
       }
     } else {
@@ -197,26 +215,56 @@ export function QuadDrone() {
     rangeStore.set({ shots: rangeStore.getState().shots + 2 })
   }
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const code = e.code
-      if (code === 'KeyQ') {
-        toggleDeploy()
-      } else if (code === 'KeyF') {
-        toggleMode()
-      } else if (code === 'Digit1') {
-        droneStore.set({ weapon: 'mg' })
-      } else if (code === 'Digit2') {
-        droneStore.set({ weapon: 'missile' })
-      } else if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'Space'].includes(code)) {
-        keys.current.add(code)
-      }
-    }
-    const onKeyUp = (e: KeyboardEvent) => {
-      keys.current.delete(e.code)
-    }
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return
+  // P1：统一按键分发（动作 id → inputMap 键位 → 上下文过滤）
+  useInputReset(() => {
+    clearHeldInput()
+  })
+
+  useKeyBinding('deployDrone', { onDown: () => toggleDeploy() })
+  useKeyBinding('toggleDroneMode', { onDown: () => toggleMode() })
+  useKeyBinding('droneWeaponMg', {
+    contexts: ['droneRemote'],
+    onDown: () => droneStore.set({ weapon: 'mg' }),
+  })
+  useKeyBinding('droneWeaponMissile', {
+    contexts: ['droneRemote'],
+    onDown: () => droneStore.set({ weapon: 'missile' }),
+  })
+  useKeyBinding('moveForward', {
+    contexts: ['droneRemote'],
+    onDown: () => keys.current.add('KeyW'),
+    onUp: () => keys.current.delete('KeyW'),
+  })
+  useKeyBinding('moveBackward', {
+    contexts: ['droneRemote'],
+    onDown: () => keys.current.add('KeyS'),
+    onUp: () => keys.current.delete('KeyS'),
+  })
+  useKeyBinding('moveLeft', {
+    contexts: ['droneRemote'],
+    onDown: () => keys.current.add('KeyA'),
+    onUp: () => keys.current.delete('KeyA'),
+  })
+  useKeyBinding('moveRight', {
+    contexts: ['droneRemote'],
+    onDown: () => keys.current.add('KeyD'),
+    onUp: () => keys.current.delete('KeyD'),
+  })
+  useKeyBinding('jump', {
+    contexts: ['droneRemote'],
+    onDown: () => keys.current.add('Space'),
+    onUp: () => keys.current.delete('Space'),
+  })
+  useKeyBinding('sprint', {
+    contexts: ['droneRemote'],
+    onDown: (e) => keys.current.add(e.code),
+    onUp: (e) => keys.current.delete(e.code),
+  })
+
+  // P1：统一鼠标分发（遥控时左键开火/切枪发射导弹）
+  useMouseBinding('fire', {
+    contexts: ['droneRemote'],
+    onDown: () => {
       const s = droneStore.getState()
       if (s.mode !== 'remote') return
       if (!document.pointerLockElement && gl.domElement.requestPointerLock) {
@@ -224,11 +272,13 @@ export function QuadDrone() {
       }
       mouseDown.current = true
       if (s.weapon === 'missile') fireMissiles()
-    }
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button !== 0) return
+    },
+    onUp: () => {
       mouseDown.current = false
-    }
+    },
+  })
+
+  useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (droneStore.getState().mode !== 'remote') return
       if (!document.pointerLockElement) return
@@ -239,17 +289,9 @@ export function QuadDrone() {
       if (rangeStore.getState().locked) e.preventDefault()
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('contextmenu', onContextMenu)
     return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('contextmenu', onContextMenu)
       // 卸载（换人）时确保还原 A 视角并收起机器人

@@ -9,6 +9,9 @@ import { ScreenFlash } from '../widgets/ScreenFlash'
 import { BioPanel } from '../widgets/BioPanel'
 import { ExoPanel } from '../widgets/ExoPanel'
 import { CommsPanel } from '../widgets/CommsPanel'
+import { ControlHints } from '../widgets/ControlHints'
+import { CONTROL_HINTS } from '../../input/inputMap'
+import { useKeyBinding } from '../../input/useKeyBinding'
 
 /* ---------------------------- 主 HUD ---------------------------- */
 
@@ -50,15 +53,15 @@ export function BHud({ ready }: { ready: boolean }) {
     return () => window.clearInterval(timer)
   }, [shots])
 
-  // 夜视：N 键切换绿色滤镜
+  // 夜视：N 键切换绿色滤镜（P1：统一按键分发）
   const [nv, setNv] = useState(false)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'KeyN') setNv((v) => !v)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useKeyBinding('nightVision', {
+    contexts: ['roleHud'],
+    onDown: (e) => {
+      if (e.repeat) return
+      setNv((v) => !v)
+    },
+  })
   useEffect(() => {
     document.body.classList.toggle('nv', nv)
   }, [nv])
@@ -230,6 +233,9 @@ export function BHud({ ready }: { ready: boolean }) {
           {message}
         </div>
       )}
+
+      {/* 操作提示（P1：键表驱动） */}
+      <ControlHints className="b-controls" items={CONTROL_HINTS.roleB} />
 
       {/* 加载/状态 */}
       {!ready && <div className="loader">LOADING FIRING RANGE…</div>}

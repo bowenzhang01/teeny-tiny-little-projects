@@ -4,6 +4,8 @@ import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnHiveMissile } from '../combat/Projectiles'
+import { useInputReset } from '../input/useInputReset'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 interface VolleyEntry {
   delay: number
@@ -34,9 +36,18 @@ export function HiveSystem() {
   const _up = useRef(new THREE.Vector3())
   const _point = useRef(new THREE.Vector3())
 
-  useEffect(() => {
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 2) return
+  // P0：失焦 / 锁丢失 / 换人时停止右键长按轮射
+  useInputReset(() => {
+    holding.current = false
+    if (streamFired.current) {
+      startCooldown(rangeStore.getState().hive.streamCooldown)
+      streamFired.current = false
+    }
+  })
+
+  // P1：统一鼠标分发（右键长按轮射 / 双击齐射）
+  useMouseBinding('altFire', {
+    onDown: (e) => {
       if (!rangeStore.getState().locked) return
       e.preventDefault()
       const now = performance.now()
@@ -51,30 +62,23 @@ export function HiveSystem() {
         fireTimer.current = 0
         streamFired.current = false
       }
-    }
-
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button !== 2) return
+    },
+    onUp: () => {
       if (!holding.current) return
       holding.current = false
       if (streamFired.current) {
         startCooldown(rangeStore.getState().hive.streamCooldown)
         streamFired.current = false
       }
-    }
+    },
+  })
 
+  useEffect(() => {
     const onContextMenu = (e: Event) => {
       if (rangeStore.getState().locked) e.preventDefault()
     }
-
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
     window.addEventListener('contextmenu', onContextMenu)
-    return () => {
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
-      window.removeEventListener('contextmenu', onContextMenu)
-    }
+    return () => window.removeEventListener('contextmenu', onContextMenu)
   }, [])
 
   const getSideOrigin = (side: 'left' | 'right', out: THREE.Vector3) => {
@@ -112,6 +116,7 @@ export function HiveSystem() {
   function fireVolley() {
     const state = rangeStore.getState()
     const now = performance.now()
+    if (now < state.weaponBusyUntil) return
     if (state.hive.cooldownUntil > now) {
       rangeStore.set({ message: '蜂巢冷却中', messageId: state.messageId + 1 })
       return
@@ -140,6 +145,7 @@ export function HiveSystem() {
   function fireSingle() {
     const state = rangeStore.getState()
     const now = performance.now()
+    if (now < state.weaponBusyUntil) return
     if (state.hive.cooldownUntil > now) return
 
     const side = alternate.current

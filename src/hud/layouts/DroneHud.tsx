@@ -6,6 +6,8 @@ import { Radar } from '../widgets/Radar'
 import { EnemyMarkers } from '../widgets/EnemyMarkers'
 import { DecoStrip } from '../widgets/DecoStrip'
 import { ScreenFlash } from '../widgets/ScreenFlash'
+import { ControlHints } from '../widgets/ControlHints'
+import { CONTROL_HINTS } from '../../input/inputMap'
 
 /**
  * 机器人手动遥控（REMOTE）全屏 HUD：
@@ -136,15 +138,8 @@ export function DroneHud({ ready }: { ready: boolean }) {
         </div>
       )}
 
-      {/* 底部：操作提示 + 装饰 */}
-      <aside className="drone-controls">
-        <span><b>WASD</b> MOVE</span>
-        <span><b>SPACE</b> JUMP</span>
-        <span><b>LMB</b> FIRE</span>
-        <span><b>1/2</b> WEAPON</span>
-        <span><b>F</b> RETURN AI</span>
-        <span><b>Q</b> STOW</span>
-      </aside>
+      {/* 底部：操作提示（P1：键表驱动） */}
+      <ControlHints className="drone-controls" items={CONTROL_HINTS.droneRemote} />
       <aside className="drone-bottom-right">
         <div className="status-pills">
           <span className={`pill ${locked ? 'on' : ''}`}>REMOTE LINK</span>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
@@ -7,6 +7,7 @@ import type { GrenadeKind } from '../state/assaultStore'
 import { droneStore } from '../state/droneStore'
 import { spawnGrenade } from '../combat/Projectiles'
 import { playDry, playThrow } from '../audio/sfx'
+import { useKeyBinding } from '../input/useKeyBinding'
 
 /**
  * A 突击兵手雷系统：
@@ -25,6 +26,7 @@ export function GrenadeKit() {
     const s = assaultStore.getState()
     const range = rangeStore.getState()
     if (!range.locked) return
+    if (performance.now() < range.weaponBusyUntil) return
     if (droneStore.getState().mode === 'remote') return
     const cur = s.grenades[s.grenadeIndex]
     if (cur.count <= 0) {
@@ -57,16 +59,21 @@ export function GrenadeKit() {
     }
   }
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
+  // P1：统一按键分发（G 投雷 / T 切换；遥控上下文下完全禁用）
+  useKeyBinding('throwGrenade', {
+    contexts: ['roleHud'],
+    onDown: (e) => {
       if (e.repeat) return
-      if (e.code === 'KeyG') throwGrenade()
-      else if (e.code === 'KeyT') assaultStore.cycleGrenade()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+      throwGrenade()
+    },
+  })
+  useKeyBinding('cycleGrenade', {
+    contexts: ['roleHud'],
+    onDown: (e) => {
+      if (e.repeat) return
+      assaultStore.cycleGrenade()
+    },
+  })
 
   useFrame(() => {
     if (!root.current) return

@@ -1,10 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnBullet } from '../combat/Projectiles'
 import { playMinigunShot, playMinigunSpin } from '../audio/sfx'
+import { useInputReset } from '../input/useInputReset'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 /**
  * 六管机枪（背部右侧）：
@@ -27,33 +29,32 @@ export function Minigun() {
   const _dir = useRef(new THREE.Vector3())
   const _aim = useRef(new THREE.Vector3())
 
-  useEffect(() => {
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return
+  // P0：失焦 / 锁丢失 / 换人时停止 spin-up 与射击
+  useInputReset(() => {
+    spinning.current = false
+    firing.current = false
+    rangeStore.set({ minigunSpinning: false, minigunFiring: false })
+  })
+
+  // P1：统一鼠标分发（左键按住 = spin-up + 持续射击）
+  useMouseBinding('fire', {
+    onDown: () => {
       const s = rangeStore.getState()
       if (!s.locked || !s.minigunDeployed) return
+      if (performance.now() < s.weaponBusyUntil) return
       spinning.current = true
       firing.current = false
       spinStart.current = performance.now()
       fireTimer.current = 0
       rangeStore.set({ minigunSpinning: true, minigunFiring: false })
       playMinigunSpin()
-    }
-
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button !== 0) return
+    },
+    onUp: () => {
       spinning.current = false
       firing.current = false
       rangeStore.set({ minigunSpinning: false, minigunFiring: false })
-    }
-
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
-    return () => {
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
+    },
+  })
 
   const fireBullet = () => {
     const s = rangeStore.getState()

@@ -5,6 +5,7 @@ import { assaultStore } from '../../state/assaultStore'
 import { droneStore } from '../../state/droneStore'
 import { SQUAD } from '../../squad'
 import { getWeaponComponent } from '../../weapons/registry'
+import { triggerInputReset } from '../../input/inputReset'
 
 /**
  * 角色武器挂载点（配置驱动）：
@@ -25,10 +26,18 @@ export function CharacterRig() {
       railgunCharging: false,
       minigunSpinning: false,
       minigunFiring: false,
+      weaponBusyUntil: 0,
     })
     // A 突击兵专属武器运行时也一并重置
     assaultStore.reset()
     droneStore.reset()
+    // 清空所有按下中的键/鼠标状态，并把 locked 与真实指针锁定对齐
+    triggerInputReset('role-switch')
+    const locked = document.pointerLockElement !== null
+    rangeStore.set({
+      locked,
+      lockedTargetId: locked ? rangeStore.getState().lockedTargetId : null,
+    })
   }, [role])
 
   const weapons = config.weapons

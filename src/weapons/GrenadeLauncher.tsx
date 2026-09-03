@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { gunFx } from '../state/gunFx'
@@ -6,6 +6,7 @@ import { rangeStore, grenadeInHand } from '../state/rangeStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnGrenade } from '../combat/Projectiles'
 import { playShot } from '../audio/sfx'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 /**
  * B 的主武器：手持榴弹机枪。
@@ -23,12 +24,12 @@ export function GrenadeLauncher() {
   const _dir = useRef(new THREE.Vector3())
   const _aim = useRef(new THREE.Vector3())
 
-  useEffect(() => {
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return
+  useMouseBinding('fire', {
+    onDown: () => {
       const s = rangeStore.getState()
       if (!s.locked) return
       if (!grenadeInHand(s)) return
+      if (performance.now() < s.weaponBusyUntil) return
 
       const now = performance.now()
       if (now - lastShotAt.current < 230) return
@@ -51,11 +52,8 @@ export function GrenadeLauncher() {
 
       rangeStore.set({ shots: s.shots + 1 })
       spawnGrenade(muzzlePos, dir)
-    }
-
-    window.addEventListener('mousedown', onMouseDown)
-    return () => window.removeEventListener('mousedown', onMouseDown)
-  }, [camera])
+    },
+  })
 
   useFrame((_, dt) => {
     if (!follower.current) return

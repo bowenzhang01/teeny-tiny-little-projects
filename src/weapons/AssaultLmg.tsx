@@ -7,6 +7,9 @@ import { droneStore } from '../state/droneStore'
 import { targetRegistry } from '../combat/targetRegistry'
 import { spawnLmgRound } from '../combat/Projectiles'
 import { playDry, playLmgShot, playReload } from '../audio/sfx'
+import { useKeyBinding } from '../input/useKeyBinding'
+import { useInputReset } from '../input/useInputReset'
+import { useMouseBinding } from '../input/useMouseBinding'
 
 /**
  * A 突击兵主武器：大弹夹轻机枪（LMG）。
@@ -33,6 +36,7 @@ export function AssaultLmg() {
   const startReload = () => {
     const s = assaultStore.getState()
     if (s.reloading || s.mag >= s.magSize) return
+    if (droneStore.getState().mode === 'remote') return
     assaultStore.set({
       reloading: true,
       reloadUntil: performance.now() + s.reloadDuration,
@@ -46,6 +50,7 @@ export function AssaultLmg() {
     if (s.reloading || s.mag <= 0) return
     const range = rangeStore.getState()
     if (!range.locked) return
+    if (performance.now() < range.weaponBusyUntil) return
     if (droneStore.getState().mode === 'remote') return
 
     const muzzlePos = new THREE.Vector3()
@@ -79,46 +84,58 @@ export function AssaultLmg() {
     if (s.mag - 1 <= 0) startReload()
   }
 
+  // P1：统一按键分发（R 换弹；遥控上下文下不响应）
+  useKeyBinding('reload', {
+    contexts: ['roleHud'],
+    onDown: () => {
+      const s = assaultStore.getState()
+      if (droneStore.getState().mode === 'remote') return
+      if (s.mag < s.magSize) startReload()
+      else playDry()
+    },
+  })
+
+  // P0：失焦 / 锁丢失 / 换人时清空按下状态
+  useInputReset(() => {
+    firing.current = false
+    assaultStore.set({ firing: false, stabilize: false })
+  })
+
+  // P1：统一鼠标分发（左键射击 / 右键稳定瞄准；遥控上下文下隔离）
+  useMouseBinding('fire', {
+    contexts: ['roleHud'],
+    onDown: () => {
+      if (droneStore.getState().mode === 'remote') return
+      if (!rangeStore.getState().locked) return
+      firing.current = true
+      assaultStore.set({ firing: true })
+    },
+    onUp: () => {
+      firing.current = false
+      assaultStore.set({ firing: false })
+    },
+  })
+
+  useMouseBinding('altFire', {
+    contexts: ['roleHud'],
+    onDown: (e) => {
+      if (droneStore.getState().mode === 'remote') return
+      if (!rangeStore.getState().locked) return
+      e.preventDefault()
+      assaultStore.set({ stabilize: true })
+    },
+    onUp: () => {
+      assaultStore.set({ stabilize: false })
+    },
+  })
+
   useEffect(() => {
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) {
-        if (!rangeStore.getState().locked) return
-        firing.current = true
-        assaultStore.set({ firing: true })
-      } else if (e.button === 2) {
-        if (!rangeStore.getState().locked) return
-        e.preventDefault()
-        assaultStore.set({ stabilize: true })
-      }
-    }
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button === 0) {
-        firing.current = false
-        assaultStore.set({ firing: false })
-      } else if (e.button === 2) {
-        assaultStore.set({ stabilize: false })
-      }
-    }
     const onContextMenu = (e: Event) => {
       if (rangeStore.getState().locked) e.preventDefault()
     }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'KeyR') {
-        const s = assaultStore.getState()
-        if (s.mag < s.magSize) startReload()
-        else playDry()
-      }
-    }
-
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
     window.addEventListener('contextmenu', onContextMenu)
-    window.addEventListener('keydown', onKeyDown)
     return () => {
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
       window.removeEventListener('contextmenu', onContextMenu)
-      window.removeEventListener('keydown', onKeyDown)
       firing.current = false
     }
   }, [])

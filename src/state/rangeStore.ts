@@ -59,6 +59,13 @@ export interface RangeState {
   minigunSpinning: boolean
   /** 六管机枪是否正在持续射击 */
   minigunFiring: boolean
+  /** 部署/收起/换弹/遥控切换期间的输入忙碌截止时间（performance.now 基准） */
+  weaponBusyUntil: number
+}
+
+/** 是否处于武器切换/换弹等输入忙碌状态 */
+export function isWeaponBusy(now = performance.now()): boolean {
+  return now < state.weaponBusyUntil
 }
 
 /** 榴弹机枪是否在手（任一件背挂武器展开时，自动隐藏） */
@@ -94,6 +101,7 @@ const initial: RangeState = {
   railgunCooldownMax: 1800,
   minigunSpinning: false,
   minigunFiring: false,
+  weaponBusyUntil: 0,
 }
 
 let state: RangeState = initial

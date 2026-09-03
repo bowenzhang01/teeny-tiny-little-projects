@@ -3,9 +3,11 @@ import { Leva } from 'leva'
 import { Suspense, useState } from 'react'
 import { Scene } from './scene/Scene'
 import { Hud } from './hud/Hud'
+import { useInputHygiene } from './input/useInputHygiene'
 
 export default function App() {
   const [ready, setReady] = useState(false)
+  useInputHygiene()
 
   return (
     <div className="app">

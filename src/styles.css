@@ -1696,6 +1696,28 @@ body.nv .glass-plate {
   margin-right: 3px;
 }
 
+/* B 操作提示（P1 通用组件） */
+.b-controls {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.b-controls b {
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 3px;
+}
+
 /* ---- 中央准星 ---- */
 .a-center {
   position: absolute;
