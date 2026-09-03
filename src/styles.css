@@ -1863,6 +1863,191 @@ body.nv .glass-plate {
   }
 }
 
+/* ============ C 工程兵 HUD：琥珀工业风 ============ */
+.hud-shell.theme-c {
+  --accent: #ffb54d;
+  --accent-soft: rgba(255, 181, 77, 0.14);
+  --border: rgba(255, 181, 77, 0.2);
+  --border-strong: rgba(255, 181, 77, 0.45);
+  --text: #ffedd5;
+  --muted: #bfa27a;
+  --glow: 0 0 10px rgba(255, 181, 77, 0.35);
+}
+
+.hud-shell.theme-c .radar {
+  border-color: rgba(255, 181, 77, 0.5);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 181, 77, 0.06), rgba(34, 20, 8, 0.42) 70%);
+  box-shadow:
+    inset 0 0 18px rgba(255, 181, 77, 0.12),
+    var(--glow);
+}
+
+.hud-shell.theme-c .radar-ring { border-color: rgba(255, 181, 77, 0.18); }
+.hud-shell.theme-c .radar-cross { background: rgba(255, 181, 77, 0.16); }
+.hud-shell.theme-c .radar-cross::after { background: rgba(255, 181, 77, 0.16); }
+.hud-shell.theme-c .radar-blip em { color: #ffd28f; }
+
+.c-hud {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(80, 44, 4, 0.12), transparent 70%),
+    linear-gradient(160deg, rgba(46, 24, 4, 0.42), rgba(14, 8, 2, 0.38));
+}
+
+.c-frame {
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--border);
+  clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 30px 100%, 0 calc(100% - 30px));
+  background:
+    linear-gradient(135deg, rgba(255, 181, 77, 0.05), transparent 28%),
+    linear-gradient(315deg, rgba(255, 181, 77, 0.04), transparent 30%);
+  box-shadow:
+    inset 0 0 30px rgba(255, 181, 77, 0.03),
+    inset 0 0 1px rgba(255, 181, 77, 0.35);
+}
+
+.c-hazard {
+  position: absolute;
+  left: 56px;
+  right: 56px;
+  top: 8px;
+  height: 4px;
+  background: repeating-linear-gradient(135deg, rgba(255, 181, 77, 0.45) 0 10px, transparent 10px 20px);
+  opacity: 0.55;
+}
+
+/* ---- C 顶栏 ---- */
+.c-topbar {
+  position: absolute;
+  top: 20px;
+  left: 56px;
+  right: 56px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.c-brand { display: flex; flex-direction: column; min-width: 200px; }
+.c-brand b {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  text-shadow: var(--glow);
+}
+.c-brand span { margin-top: 3px; font-size: 9px; letter-spacing: 0.2em; color: var(--muted); }
+.c-top-right { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-family: 'Consolas', 'Menlo', monospace; font-size: 10px; color: var(--muted); }
+.c-top-right .on { color: #ffd28f; text-shadow: 0 0 8px rgba(255, 181, 77, 0.7); }
+
+/* ---- C 左右列 ---- */
+.c-left { position: absolute; left: 22px; top: 92px; width: 252px; display: flex; flex-direction: column; gap: 10px; }
+.c-right { position: absolute; right: 22px; top: 92px; width: 286px; display: flex; flex-direction: column; gap: 10px; }
+.c-bottom-left { position: absolute; left: 22px; bottom: 22px; width: 262px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100% - 240px); overflow: hidden; }
+.c-bottom-right { position: absolute; right: 22px; bottom: 22px; min-width: 210px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- C 面板 ---- */
+.c-panel {
+  position: relative;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: linear-gradient(150deg, rgba(40, 24, 6, 0.42), rgba(14, 8, 2, 0.26));
+  box-shadow:
+    inset 0 0 14px rgba(255, 181, 77, 0.04),
+    0 0 8px rgba(0, 0, 0, 0.14);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.c-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: var(--glow);
+}
+.c-panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.c-panel h3 { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.2em; color: var(--accent); text-shadow: 0 0 8px rgba(255, 181, 77, 0.45); }
+.c-panel-head em { font-style: normal; font-family: 'Consolas', 'Menlo', monospace; font-size: 8px; letter-spacing: 0.1em; color: var(--muted); }
+.c-panel-head em.on { color: var(--accent); text-shadow: var(--glow); }
+
+/* ---- C 等离子状态 ---- */
+.c-energy, .c-heat { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-family: 'Consolas', 'Menlo', monospace; font-size: 9px; color: var(--muted); }
+.c-energy b, .c-heat b { color: var(--text); font-size: 10px; }
+.c-energy-track, .c-heat-track { flex: 1; height: 6px; background: rgba(255, 181, 77, 0.08); border: 1px solid var(--border); }
+.c-energy-track i { display: block; height: 100%; background: linear-gradient(90deg, #ffb54d, #ffe08a); box-shadow: 0 0 8px rgba(255, 181, 77, 0.6); }
+.c-heat-track i { display: block; height: 100%; background: linear-gradient(90deg, #ff7a3c, #ffb54d); }
+.c-heat-track.hot i { background: linear-gradient(90deg, #ff4d3c, #ff8a3c); box-shadow: 0 0 10px rgba(255, 77, 60, 0.7); }
+.c-mini-row { display: flex; justify-content: space-between; margin: 8px 0 2px; font-family: 'Consolas', 'Menlo', monospace; font-size: 9px; color: var(--muted); }
+.c-mini-row .warn { color: #ff8a3c; }
+
+/* ---- C 四臂 ---- */
+.c-arms-row { display: flex; gap: 6px; margin: 4px 0; }
+.c-arms-node { flex: 1; text-align: center; padding: 4px 0; border: 1px solid var(--border); color: var(--muted); font-family: 'Consolas', 'Menlo', monospace; font-size: 9px; }
+.c-arms-node.on { color: var(--accent); border-color: var(--border-strong); text-shadow: var(--glow); }
+.c-arms-note { font-family: 'Consolas', 'Menlo', monospace; font-size: 8px; letter-spacing: 0.08em; color: var(--muted); }
+
+/* ---- C 部署蓝图 ---- */
+.c-deploy-slots { display: flex; flex-direction: column; gap: 5px; }
+.c-slot { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border: 1px solid var(--border); background: rgba(255, 181, 77, 0.03); }
+.c-slot span { font-family: 'Consolas', 'Menlo', monospace; font-size: 9px; color: var(--muted); }
+.c-slot b { font-family: 'Consolas', 'Menlo', monospace; font-size: 10px; color: var(--text); }
+.c-slot.active { border-color: var(--border-strong); background: rgba(255, 181, 77, 0.09); }
+.c-slot.active span { color: var(--accent); }
+
+/* ---- C 战术 ---- */
+.c-radar-row { display: flex; gap: 12px; align-items: center; }
+.c-target-list { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.c-target-line { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 6px; border-left: 2px solid rgba(255, 181, 77, 0.25); font-family: 'Consolas', 'Menlo', monospace; font-size: 9px; color: var(--muted); }
+.c-target-line span { color: var(--muted); }
+.c-target-line b { color: var(--text); }
+.c-target-line em { color: var(--muted); font-style: normal; }
+.c-target-line.active { border-left-color: var(--accent); background: rgba(255, 181, 77, 0.08); }
+.c-target-line.active em { color: var(--accent); }
+.c-target-line.dim { opacity: 0.45; }
+
+/* ---- C 状态 ---- */
+.c-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.c-pill { padding: 3px 8px; border: 1px solid var(--border); font-family: 'Consolas', 'Menlo', monospace; font-size: 8px; letter-spacing: 0.1em; color: var(--muted); }
+.c-pill.on { color: var(--accent); border-color: var(--border-strong); text-shadow: var(--glow); }
+.c-pill.warn { color: #ff8a3c; border-color: rgba(255, 138, 60, 0.45); }
+.c-stat-row { display: flex; justify-content: space-between; margin: 9px 0 6px; font-family: 'Consolas', 'Menlo', monospace; font-size: 10px; color: var(--muted); }
+.c-stat-row b { color: var(--text); }
+
+/* ---- C 中央准星 ---- */
+.c-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.c-crosshair { position: relative; width: 46px; height: 46px; }
+.c-crosshair i { position: absolute; background: var(--accent); box-shadow: var(--glow); }
+.c-crosshair .ch { left: 0; right: 0; top: 22px; height: 2px; }
+.c-crosshair .cv { top: 0; bottom: 0; left: 22px; width: 2px; }
+.c-crosshair .cd { left: 20px; top: 20px; width: 6px; height: 6px; transform: rotate(45deg); }
+.c-lock-ring { position: absolute; left: 50%; top: 50%; width: 90px; height: 90px; transform: translate(-50%, -50%); border: 1px solid rgba(255, 181, 77, 0.3); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); opacity: 0.6; }
+.c-lock-ring.on { border-color: var(--accent); opacity: 1; box-shadow: var(--glow); }
+.c-center-readout { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.c-lock-state { font-family: 'Consolas', 'Menlo', monospace; font-size: 10px; letter-spacing: 0.22em; color: var(--muted); }
+.c-lock-state.on { color: var(--accent); text-shadow: var(--glow); }
+.c-weapon { font-size: 9px; letter-spacing: 0.16em; color: var(--muted); }
+.c-score { font-family: 'Consolas', 'Menlo', monospace; font-size: 14px; letter-spacing: 0.12em; color: var(--text); text-shadow: var(--glow); }
+
+/* ---- C 操作提示 ---- */
+.c-controls {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.c-controls b { color: var(--accent); font-weight: 700; margin-right: 3px; }
+
 /* ============ 四足机器人：AUTO 面板 + REMOTE 全屏 HUD ============ */
 
 /* ---- 通用小件：机器人数据行/武器状态 ---- */

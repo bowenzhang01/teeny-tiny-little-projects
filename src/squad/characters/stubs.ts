@@ -13,16 +13,6 @@ export const A: CharacterConfig = {
   hud: AHud,
 }
 
-export const C: CharacterConfig = {
-  id: 'C',
-  title: '工程兵',
-  role: 'ENGINEER',
-  theme: { primary: '#fbbf24', secondary: '#fde68a', label: 'SQUAD-C // FORGE-03', desc: '工程 · 部署与维修' },
-  playable: false,
-  weapons: [],
-  hud: PlaceholderHud,
-}
-
 export const D: CharacterConfig = {
   id: 'D',
   title: '医疗兵',

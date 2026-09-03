@@ -26,6 +26,14 @@ export type InputAction =
   | 'moveRight'
   | 'jump'
   | 'sprint'
+  // C 工程兵
+  | 'plasmaVent'
+  | 'toggleArms'
+  | 'deployTurret'
+  | 'cycleBlueprint'
+  | 'placeDeployable'
+  | 'detonateMines'
+  | 'recallAll'
 
 /** 动作 id → 键盘 code（可多个，取任意一个即可触发） */
 export const INPUT_KEYS: Record<InputAction, string[]> = {
@@ -47,6 +55,14 @@ export const INPUT_KEYS: Record<InputAction, string[]> = {
   moveRight: ['KeyD'],
   jump: ['Space'],
   sprint: ['ShiftLeft', 'ShiftRight'],
+  // C 工程兵
+  plasmaVent: ['KeyR'],
+  toggleArms: ['Digit2'],
+  deployTurret: ['Digit3'],
+  cycleBlueprint: ['Digit4'],
+  placeDeployable: ['KeyG'],
+  detonateMines: ['KeyT'],
+  recallAll: ['Digit1'],
 }
 
 /** 鼠标动作 id → 鼠标按键（0=左键，2=右键） */
@@ -62,7 +78,7 @@ export interface ControlHint {
 }
 
 /** 各输入上下文的 HUD 操作提示（由 ControlHints 通用组件渲染） */
-export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'droneRemote' | 'transition', ControlHint[]> = {
+export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'roleC' | 'droneRemote' | 'transition', ControlHint[]> = {
   roleB: [
     { keys: 'LMB', label: 'FIRE' },
     { keys: 'RMB', label: 'HIVE (HOLD / ×2)' },
@@ -80,6 +96,18 @@ export const CONTROL_HINTS: Record<'roleB' | 'roleA' | 'droneRemote' | 'transiti
     { keys: 'T', label: 'CYCLE' },
     { keys: 'Q', label: 'DRONE' },
     { keys: 'F', label: 'MODE' },
+    { keys: 'N', label: 'NV' },
+  ],
+  roleC: [
+    { keys: 'LMB', label: 'PLASMA' },
+    { keys: 'RMB', label: 'OVERCHARGE' },
+    { keys: 'R', label: 'VENT' },
+    { keys: '1', label: 'RECALL' },
+    { keys: '2', label: 'ARMS' },
+    { keys: '3', label: 'TURRET' },
+    { keys: '4', label: 'BLUEPRINT' },
+    { keys: 'G', label: 'DEPLOY' },
+    { keys: 'T', label: 'DETONATE' },
     { keys: 'N', label: 'NV' },
   ],
   droneRemote: [

@@ -3,6 +3,7 @@ import { useActiveRole } from '../../state/characterStore'
 import { rangeStore } from '../../state/rangeStore'
 import { assaultStore } from '../../state/assaultStore'
 import { droneStore } from '../../state/droneStore'
+import { engineerStore } from '../../state/engineerStore'
 import { SQUAD } from '../../squad'
 import { getWeaponComponent } from '../../weapons/registry'
 import { triggerInputReset } from '../../input/inputReset'
@@ -31,6 +32,8 @@ export function CharacterRig() {
     // A 突击兵专属武器运行时也一并重置
     assaultStore.reset()
     droneStore.reset()
+    // C 工程兵专属运行时也一并重置
+    engineerStore.reset()
     // 清空所有按下中的键/鼠标状态，并把 locked 与真实指针锁定对齐
     triggerInputReset('role-switch')
     const locked = document.pointerLockElement !== null
