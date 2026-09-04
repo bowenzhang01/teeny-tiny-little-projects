@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { rangeStore } from '../state/rangeStore'
 import { assaultStore } from '../state/assaultStore'
+import { medicStore } from '../state/medicStore'
+import { commsStore } from '../state/commsStore'
 import { targetRegistry } from './targetRegistry'
 
 /**
@@ -41,9 +43,17 @@ export function LockSystem() {
     const current = rangeStore.getState()
     let next: string | null = null
 
-    // 激光反导标记的目标可获得更宽的锁定角度（A 的辅助锁定）
+    // 激光反导标记（A）或无人机传感器标记（D）的目标可获得更宽的锁定角度
     const ciws = assaultStore.getState().ciws
-    const threshold = ciws.tracking === best?.id ? 0.16 : 0.09
+    const medic = medicStore.getState().drones
+    const droneAssist = medic.mode !== 'stowed' && medic.sensorTarget === best?.id
+    // E 通信兵：RAVEN 传感器 / AR E-MARK / TRI 信标标记放宽锁定
+    const comm = commsStore.getState()
+    const commAssist =
+      (comm.drone.mode !== 'stowed' && comm.drone.sensorMark === best?.id) ||
+      (comm.rifleMark === best?.id && now < comm.rifleMarkUntil) ||
+      (comm.beaconMark === best?.id && now < comm.beaconMarkUntil)
+    const threshold = ciws.tracking === best?.id || droneAssist || commAssist ? 0.16 : 0.09
 
     if (best && best.angle < threshold && best.dist < 40) {
       next = best.id

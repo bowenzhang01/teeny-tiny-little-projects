@@ -5,7 +5,7 @@
  *   避免文档 1.1 里的"HUD 写死提示与真实键位漂移"。
  */
 
-export type InputContextId = 'roleHud' | 'droneRemote' | 'turretRemote' | 'transition'
+export type InputContextId = 'roleHud' | 'droneRemote' | 'turretRemote' | 'linkRemote' | 'transition'
 
 export type InputAction =
   | 'nightVision'
@@ -35,6 +35,23 @@ export type InputAction =
   | 'placeDeployable'
   | 'detonateMines'
   | 'recallAll'
+  // D 医疗兵
+  | 'medicWeaponSmg'
+  | 'medicWeaponDart'
+  | 'smokeThrow'
+  | 'medicDroneToggle'
+  | 'medicDroneMove'
+  | 'medicDroneMode'
+  // E 通信兵
+  | 'beaconThrow'
+  | 'empThrow'
+  | 'commsDroneToggle'
+  | 'commsDroneMode'
+  | 'commsLinkView'
+  | 'commsDroneMg'
+  | 'commsDroneMissile'
+  | 'droneUp'
+  | 'droneDown'
 
 /** 动作 id → 键盘 code（可多个，取任意一个即可触发） */
 export const INPUT_KEYS: Record<InputAction, string[]> = {
@@ -65,6 +82,23 @@ export const INPUT_KEYS: Record<InputAction, string[]> = {
   placeDeployable: ['KeyG'],
   detonateMines: ['KeyT'],
   recallAll: ['Digit1'],
+  // D 医疗兵
+  medicWeaponSmg: ['Digit1'],
+  medicWeaponDart: ['Digit2'],
+  smokeThrow: ['KeyG'],
+  medicDroneToggle: ['KeyQ'],
+  medicDroneMove: ['KeyF'],
+  medicDroneMode: ['KeyT'],
+  // E 通信兵
+  beaconThrow: ['KeyG'],
+  empThrow: ['KeyT'],
+  commsDroneToggle: ['KeyQ'],
+  commsDroneMode: ['KeyF'],
+  commsLinkView: ['KeyV'],
+  commsDroneMg: ['Digit1'],
+  commsDroneMissile: ['Digit2'],
+  droneUp: ['Space'],
+  droneDown: ['ControlLeft', 'ControlRight'],
 }
 
 /** 鼠标动作 id → 鼠标按键（0=左键，2=右键） */
@@ -81,7 +115,7 @@ export interface ControlHint {
 
 /** 各输入上下文的 HUD 操作提示（由 ControlHints 通用组件渲染） */
 export const CONTROL_HINTS: Record<
-  'roleB' | 'roleA' | 'roleC' | 'droneRemote' | 'turretRemote' | 'transition',
+  'roleB' | 'roleA' | 'roleC' | 'roleD' | 'roleE' | 'droneRemote' | 'turretRemote' | 'linkRemote' | 'transition',
   ControlHint[]
 > = {
   roleB: [
@@ -116,6 +150,26 @@ export const CONTROL_HINTS: Record<
     { keys: 'T', label: 'DETONATE' },
     { keys: 'N', label: 'NV' },
   ],
+  roleD: [
+    { keys: 'LMB', label: 'FIRE' },
+    { keys: '1/2', label: 'SMG / DART' },
+    { keys: 'R', label: 'RELOAD' },
+    { keys: 'G', label: 'SMOKE' },
+    { keys: 'T', label: 'MODE' },
+    { keys: 'Q', label: 'DRONES' },
+    { keys: 'F', label: 'ASSIST' },
+    { keys: 'N', label: 'NV' },
+  ],
+  roleE: [
+    { keys: 'LMB', label: 'FIRE' },
+    { keys: 'R', label: 'RELOAD' },
+    { keys: 'G', label: 'BEACON' },
+    { keys: 'T', label: 'EMP' },
+    { keys: 'Q', label: 'RAVEN' },
+    { keys: 'F', label: 'MODE' },
+    { keys: 'V', label: 'LINK VIEW' },
+    { keys: 'N', label: 'NV' },
+  ],
   droneRemote: [
     { keys: 'WASD', label: 'MOVE' },
     { keys: 'SPACE', label: 'JUMP' },
@@ -128,6 +182,17 @@ export const CONTROL_HINTS: Record<
     { keys: 'LMB', label: 'FIRE' },
     { keys: 'F', label: 'RETURN AUTO' },
     { keys: '3', label: 'RECALL' },
+    { keys: 'N', label: 'NV' },
+  ],
+  linkRemote: [
+    { keys: 'WASD', label: 'FLY' },
+    { keys: 'SPACE', label: 'UP' },
+    { keys: 'CTRL', label: 'DOWN' },
+    { keys: 'LMB', label: 'FIRE' },
+    { keys: '1/2', label: 'MG / MSL' },
+    { keys: 'F', label: 'MODE' },
+    { keys: 'V', label: 'EXIT LINK' },
+    { keys: 'Q', label: 'STOW' },
     { keys: 'N', label: 'NV' },
   ],
   transition: [],

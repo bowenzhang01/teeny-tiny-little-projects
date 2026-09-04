@@ -1,8 +1,7 @@
 import type { CharacterConfig } from '../types'
-import { PlaceholderHud } from '../../hud/layouts/PlaceholderHud'
 import { AHud } from '../../hud/layouts/AHud'
 
-/** 未实装角色：先提供配置文件与占位 HUD，后续逐个补武器&布局 */
+/** A 突击兵：完整配置（机器人 Q-01 附属于 A） */
 export const A: CharacterConfig = {
   id: 'A',
   title: '突击兵',
@@ -11,24 +10,4 @@ export const A: CharacterConfig = {
   playable: true,
   weapons: ['assaultLmg', 'grenadeKit', 'laserCiws', 'quadDrone'],
   hud: AHud,
-}
-
-export const D: CharacterConfig = {
-  id: 'D',
-  title: '医疗兵',
-  role: 'MEDIC',
-  theme: { primary: '#4ade80', secondary: '#86efac', label: 'SQUAD-D // MEND-04', desc: '医疗 · 生命体征' },
-  playable: false,
-  weapons: [],
-  hud: PlaceholderHud,
-}
-
-export const E: CharacterConfig = {
-  id: 'E',
-  title: '通信兵',
-  role: 'COMMS',
-  theme: { primary: '#c084fc', secondary: '#d8b4fe', label: 'SQUAD-E // LINK-05', desc: '通信 · 小队定位' },
-  playable: false,
-  weapons: [],
-  hud: PlaceholderHud,
 }

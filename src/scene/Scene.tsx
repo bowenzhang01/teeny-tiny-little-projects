@@ -9,6 +9,7 @@ import { CharacterRig } from './squad/CharacterRig'
 import { rangeStore } from '../state/rangeStore'
 import { useDrone } from '../state/droneStore'
 import { useEngineer } from '../state/engineerStore'
+import { useComms } from '../state/commsStore'
 
 export function Scene() {
   const { targetDistance, sensitivity } = useControls('靶场', {
@@ -17,7 +18,8 @@ export function Scene() {
   })
   const drone = useDrone()
   const engineer = useEngineer()
-  const remote = drone.mode === 'remote' || engineer.turret.manual
+  const comms = useComms()
+  const remote = drone.mode === 'remote' || engineer.turret.manual || comms.drone.linkView
 
   return (
     <>

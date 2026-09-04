@@ -1,7 +1,9 @@
 import type { CharacterConfig, RoleId } from './types'
 import { B } from './characters/b'
 import { C } from './characters/c'
-import { A, D, E } from './characters/stubs'
+import { D } from './characters/d'
+import { E } from './characters/e'
+import { A } from './characters/stubs'
 
 export const SQUAD: Record<RoleId, CharacterConfig> = { A, B, C, D, E }
 

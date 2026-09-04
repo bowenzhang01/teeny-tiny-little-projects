@@ -63,7 +63,13 @@
 - [x] **第四批（第一版）**：A 专属四足机器人 Q-01 —— Q 放下/收起，
       F 在 `AUTO`（巡逻+自动交战）与 `REMOTE`（全屏手控）间切换，
       WASD 移动 + Space 小跳 + 1/2 武器切换 + MG/微型导弹 + DronePanel/DroneHud
-- [ ] **待做**：角色移动、C/D/E 实装、移动标靶/虚拟敌人、通信系统实装、
+- [x] **第五批**：D 医疗兵 = 轻型冲锋枪（40 发 / R 换弹）+ 镇定剂针枪（6 发 / 自动装填）
+      + 烟雾弹（3 颗 / 6s 补充）+ 四台支援无人机（Q 展开 / F 环绕↔支援 /
+      T 切换 HEAL·ENHANCE·CLOAK）+ 绿色医疗终端 HUD（队友三查 / 无人机矩阵 / 支援模式）
+- [x] **第六批**：E 通信兵 = AR-05 侦察突击步枪（30 发 / E-MARK）+ RAVEN-05 大型无人机
+      （RELAY/SWEEP/STRIKE + 链路视角 V + MG/MSL）+ TRI-05 信标（3 颗 / 侦察标记）+
+      EMP-05 干扰弹（2 颗 / 瘫痪 4s）+ 紫色网络终端 HUD（RAVEN/网矩阵/侦察负载）
+- [ ] **待做**：角色移动、移动标靶/虚拟敌人、通信系统实装、
       靶场重构、射击手感打磨、机器人复杂寻路/避障（AUTO 已留扩展接口）
 
 ### 5. 本机器/环境的坑（重要）
@@ -152,6 +158,51 @@ pnpm dev
 - **HUD**：AUTO 时 A HUD 右侧显示 `DronePanel`（LINK/POWER/SPEED/AI/MG/MSL/SENSOR）；
   REMOTE 时切到全屏 `DroneHud`（机器人观瞄 + 机身状态 + 武器 + 雷达 + 操作提示）。
 
+## 当前主角：D · 医疗兵（第五批已实装）
+
+- **定位**：与 B 重火力 / A 突击 / C 工程形成对照——辅助/支援，HUD 全队最复杂。
+- **主武器 · 轻型冲锋枪（SMG）**：40 发弹匣，左键按住连射（约 0.08s/发），`R` 换弹；
+  绿色高速曳光 + 小型绿色爆点，命中推倒标靶 +1。
+- **副武器 · 镇定剂针枪（Tranq Dart）**：`2` 切换，单发约 0.65s/发，6 发打完约 1.8s 自动装填
+  （`R` 也可手动）；绿色细弹道 + 药雾，命中 +4 并“镇定”倒下。
+- **投掷物 · 烟雾弹（Smoke）**：`G` 投出，库存 3 颗，约 6s 自动补满；落地形成约 6s
+  灰绿色半透明烟雾云（不伤害、不推倒，纯视觉遮蔽）。
+- **四台支援无人机（D1–D4）**：`Q` 展开/收回，`F` 环绕↔支援，`T` 循环
+  `HEAL → ENHANCE → CLOAK`；环绕玩家空域，支援时飞向 A/B/C/E 虚拟队友全息标记点
+  （当前为占位，未来替换真实队友实体）。ENHANCE 生效期间 SMG 散布更低、后坐更小、换弹更快；
+  无人机传感器自动标记最近目标并放宽锁定阈值。
+- **HUD**：绿色医疗终端（`#4ade80` 主色系）——左：生命体征/外骨骼/SQUAD TRIAGE 队友三查；
+  右：SMG/DART/SMOKE 武器面板 + D1–D4 无人机矩阵 + 支援模式 + 战术雷达；
+  中央准星 + `SUPPORT: HEAL/ENHANCE/CLOAK` 当前模式。
+
+## 当前主角：E · 通信兵（第六批已实装）
+
+- **定位**：与 A/B/C/D 对照的「通信 + 侦察」中枢——不是纯火力角色，而是
+  「看得远、标得快、还能打」的战术节点；HUD 为**紫色网络终端**，
+  复杂度与 D 同级（信息传递中枢：全队链路/侦察状态都汇聚到 E 的面板）。
+- **主武器 · AR-05 侦察突击步枪**：
+  - 30 发弹匣，左键按住连射（约 0.10s/发），`R` 换弹约 1.1s；
+  - 紫色高速曳光，命中 +1 并推倒标靶；命中即打上 **E-MARK 侦察标记**，
+    自动锁定阈值放宽（复用 CIWS/D 无人机辅助锁定思路）。
+- **特殊系统 · RAVEN-05 大型无人机**：与 A 机器人同量级的作战平台，但操作不同——
+  **空中飞行 + 工作模式循环**，不需要全屏遥控走动：
+  - `Q` 部署/收回；状态机 `RELAY → SWEEP → STRIKE → RELAY`；
+  - `RELAY`：通信中继（悬停玩家侧上方，传感器标记最近目标）；
+  - `SWEEP`：绕场巡航扫描（全目标侦察标记，HUD 显示 `SENSOR`）；
+  - `STRIKE`：协同交战（双管机枪 + 左右各 2 发微型导弹，导弹冷却 6s）；
+  - `V` 进入 **链路视角**（RAVEN LINK 全屏 HUD）：无人机观瞄 + `WASD` 飞行 /
+    `Space` 上升 / `Ctrl` 下降 + `1/2` 切 MG/MSL + 左键开火，本体视角不接管；
+    退出自动还原第一人称。
+- **投掷物 · TRI-05 三角定位信标**：`G` 抛射，库存 **3 颗**、约 6s 自动补满；
+  落地展开紫色全息侦察锚点（约 10s），标记最邻近目标（TRI MARK），
+  HUD 实时显示信标库存与补充倒计时。
+- **电子战 · EMP-05 电磁干扰弹**：`T` 抛射，库存 **2 颗**、约 8s 自动补满；
+  紫色电磁爆 + 全屏扰动，命中标靶 +5 并**“瘫痪”倒下更久（4s）**。
+- **HUD**：紫色网络终端（`#c084fc`）——左：AR 面板 + 生命体征/外骨骼 +
+  小队通信；右：RAVEN 面板（模式/链路/电量/传感器/MG 热度/MSL 冷却）+
+  RECON LOADOUT（TRI/EMP）+ **SQUAD NET 矩阵**（A/B/C/D 链路状态）+
+  战术雷达/目标列表；中央紫色准星 + 锁定环 + 当前 RAVEN 模式。
+
 ## 交互
 
 - **点击画面**：锁定鼠标，进入射击模式（ESC 退出）
@@ -163,6 +214,11 @@ pnpm dev
 - **A 模式**：左键 LMG 连射 · 右键按住稳定瞄准 · `R` 换弹 · `G` 投手雷 · `T` 切手雷
 - **机器人 Q-01**：`Q` 放下/收起 · `F` 自动↔手动（全屏遥控） · 手动时 `WASD` 移动 ·
   `Space` 小跳 · `Shift` 冲刺 · 左键开火 · `1/2` 切 MG/导弹 · `Q` 收起
+- **D 模式**：`1/2` 切 SMG/针枪 · `R` 换弹 · `G` 烟雾弹 · `T` 支援模式 ·
+  `Q` 无人机展开/收回 · `F` 环绕↔支援
+- **E 模式**：`LMB` AR-05 · `R` 换弹 · `G` TRI 信标 · `T` EMP 干扰弹 ·
+  `Q` RAVEN 部署/收回 · `F` RELAY/SWEEP/STRIKE 循环 · `V` 链路视角（`WASD` 飞行 /
+  `Space` 上升 / `Ctrl` 下降）· `1/2` MG/MSL
 - **N**：夜视滤镜（绿色）
 - 左上角 leva 面板：调靶距、鼠标灵敏度
 
@@ -227,20 +283,26 @@ pnpm dev
 │   │   ├── rangeStore.ts           # 通用：得分 / 命中 / 锁定 / 目标
 │   │   ├── assaultStore.ts         # A：LMG 弹匣/热度、手雷、CIWS 状态
 │   │   ├── droneStore.ts           # A 机器人：模式/电池/武器/HUD 状态
+│   │   ├── engineerStore.ts        # C：等离子/四臂/炮塔/部署包状态
+│   │   ├── medicStore.ts           # D：SMG/针枪/烟雾/支援无人机状态
+│   │   ├── commsStore.ts           # E：AR/RAVEN/信标/EMP/侦察标记状态
 │   │   ├── characterStore.ts       # activeRoleId + 换人切换
 │   │   └── gunFx.ts                # 后坐力 / 枪口闪光状态
 │   ├── squad/
 │   │   ├── types.ts                # RoleId / CharacterConfig / 主题
 │   │   ├── characters/
 │   │   │   ├── b.ts                # B：完整配置（可玩）
-│   │   │   └── stubs.ts            # A/C/D/E：WIP 占位配置
+│   │   │   ├── c.ts                # C：完整配置（可玩）
+│   │   │   ├── d.ts                # D：完整配置（可玩）
+│   │   │   ├── e.ts                # E：完整配置（可玩）
+│   │   │   └── stubs.ts            # A：完整配置（可玩）；未实装角色占位
 │   │   └── index.ts                # SQUAD 表 + ROLE_IDS
 │   ├── hud/
 │   │   ├── Hud.tsx                 # HUD 外壳：按角色加载 Layout + 主题
 │   │   ├── SquadSelector.tsx       # A–E 卡片换人
 │   │   ├── EcgWave.tsx             # ECG 实时波形（Canvas）
 │   │   ├── ecg.ts                  # ECG 数学模型（参考 Anima Digitalis）
-│   │   ├── widgets/                # 公共 HUD 小件（B/A 共用，后续角色复用）
+│   │   ├── widgets/                # 公共 HUD 小件（全员共用）
 │   │   │   ├── Bar.tsx             # 条状仪表
 │   │   │   ├── BioPanel.tsx        # 心率/ECG/生命体征（通用）
 │   │   │   ├── ExoPanel.tsx        # 外骨骼状态（通用）
@@ -254,7 +316,12 @@ pnpm dev
 │   │   └── layouts/
 │   │       ├── BHud.tsx            # B：玻璃板 HUD（完整）
 │   │       ├── AHud.tsx            # A：红色锐角战术 HUD（完整）
+│   │       ├── CHud.tsx            # C：琥珀工业风 HUD（完整）
+│   │       ├── DHud.tsx            # D：绿色医疗终端 HUD（完整）
+│   │       ├── EHud.tsx            # E：紫色网络终端 HUD（完整）
 │   │       ├── DroneHud.tsx        # A 机器人 REMOTE 全屏遥控 HUD
+│   │       ├── SentryHud.tsx       # C 哨戒炮塔 SENTRY LINK 全屏 HUD
+│   │       ├── RavenHud.tsx        # E RAVEN 链路视角全屏 HUD
 │   │       └── PlaceholderHud.tsx  # 未实装角色占位 HUD
 │   ├── scene/
 │   │   ├── Scene.tsx               # 共享场景组装 + PointerLockControls
@@ -267,7 +334,9 @@ pnpm dev
 │   ├── combat/                     # 共享战斗系统
 │   │   ├── Projectiles.tsx         # 弹体 + 爆炸特效 + 标靶倒下驱动
 │   │   ├── LockSystem.tsx          # 自动锁定 + 锁定框
-│   │   └── targetRegistry.ts       # 目标注册 / 包围盒 / 投影
+│   │   ├── targetRegistry.ts       # 目标注册 / 包围盒 / 投影
+│   │   ├── placement.ts            # 准星地面落点（C 部署用）
+│   │   └── deployRegistry.ts       # C 部署物占位碰撞注册
 │   ├── weapons/                    # 各角色武器组件（可注册/复用）
 │   │   ├── registry.ts             # 武器 id → 组件 注册表（CharacterRig 读取）
 │   │   ├── GrenadeLauncher.tsx     # B 主武器：榴弹机枪（持握/收起）
@@ -278,6 +347,18 @@ pnpm dev
 │   │   ├── GrenadeKit.tsx          # A：G 投掷 / T 切换 多种手雷
 │   │   ├── LaserCiws.tsx           # A：双肩激光反导（追踪标记 / 未来拦截）
 │   │   ├── QuadDrone.tsx           # A 机器人：四足模型/AUTO AI/REMOTE 手控/收放
+│   │   ├── PlasmaLaser.tsx         # C 主武器：等离子激光 + 过载 + 散热
+│   │   ├── QuadArms.tsx            # C：四机械臂（展开/部署操作）
+│   │   ├── SentryTurret.tsx        # C：固定哨戒炮塔（部署/自动/手动）
+│   │   ├── DeployKit.tsx           # C：地雷/屏障部署包
+│   │   ├── MedicSmg.tsx            # D 主武器：轻型冲锋枪
+│   │   ├── DartGun.tsx             # D：镇定剂针枪
+│   │   ├── SmokeKit.tsx            # D：烟雾弹
+│   │   ├── SupportDrones.tsx       # D：四台支援无人机（HEAL/ENHANCE/CLOAK）
+│   │   ├── CommsRifle.tsx          # E 主武器：AR-05 侦察突击步枪
+│   │   ├── RavenDrone.tsx          # E：RAVEN-05 大型无人机（模式循环+链路视角）
+│   │   ├── BeaconKit.tsx           # E：TRI-05 三角定位信标
+│   │   ├── EmpKit.tsx              # E：EMP-05 电磁干扰弹
 │   │   └── WeaponControls.tsx      # 1/2/3 背挂武器切换
 ├── vite.config.ts
 └── tsconfig*.json

@@ -12,6 +12,14 @@ import { PlasmaLaser } from './PlasmaLaser'
 import { QuadArms } from './QuadArms'
 import { SentryTurret } from './SentryTurret'
 import { DeployKit } from './DeployKit'
+import { MedicSmg } from './MedicSmg'
+import { DartGun } from './DartGun'
+import { SmokeKit } from './SmokeKit'
+import { SupportDrones } from './SupportDrones'
+import { CommsRifle } from './CommsRifle'
+import { RavenDrone } from './RavenDrone'
+import { BeaconKit } from './BeaconKit'
+import { EmpKit } from './EmpKit'
 
 export interface WeaponManifest {
   id: string
@@ -37,6 +45,14 @@ export const WEAPON_REGISTRY: Record<string, WeaponManifest> = {
   quadArms: { id: 'quadArms', name: 'Quad Arms', component: QuadArms },
   sentryTurret: { id: 'sentryTurret', name: 'Sentry Turret', component: SentryTurret },
   deployKit: { id: 'deployKit', name: 'Deploy Kit', component: DeployKit },
+  medicSmg: { id: 'medicSmg', name: 'Medic SMG', component: MedicSmg },
+  dartGun: { id: 'dartGun', name: 'Tranq Dart Gun', component: DartGun },
+  smokeKit: { id: 'smokeKit', name: 'Smoke Kit', component: SmokeKit },
+  supportDrones: { id: 'supportDrones', name: 'Support Drones', component: SupportDrones },
+  commsRifle: { id: 'commsRifle', name: 'AR-05 Recon Rifle', component: CommsRifle },
+  ravenDrone: { id: 'ravenDrone', name: 'RAVEN-05 Drone', component: RavenDrone },
+  beaconKit: { id: 'beaconKit', name: 'TRI Beacon Kit', component: BeaconKit },
+  empKit: { id: 'empKit', name: 'EMP Throwable', component: EmpKit },
 }
 
 export function getWeaponComponent(id: string): ComponentType | null {

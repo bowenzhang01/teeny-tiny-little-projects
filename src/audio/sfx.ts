@@ -329,3 +329,129 @@ export function playThrow() {
   noise.start(now + 0.03)
   noise.stop(now + 0.32)
 }
+
+/** D 医疗兵 SMG 单发：更轻、更脆的短击 */
+export function playSmgShot() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+  const duration = 0.05
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.4)
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.setValueAtTime(2100, now)
+  filter.frequency.exponentialRampToValueAtTime(850, now + duration)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.16, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now)
+  noise.stop(now + duration)
+
+  const osc = ac.createOscillator()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(300, now)
+  osc.frequency.exponentialRampToValueAtTime(120, now + 0.035)
+  const oscGain = ac.createGain()
+  oscGain.gain.setValueAtTime(0.1, now)
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045)
+  osc.connect(oscGain).connect(ac.destination)
+  osc.start(now)
+  osc.stop(now + 0.05)
+}
+
+/** 镇定剂针枪：软软一声“噗” */
+export function playDart() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+  const duration = 0.12
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2)
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(900, now)
+  filter.frequency.exponentialRampToValueAtTime(220, now + duration)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.3, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now)
+  noise.stop(now + duration)
+}
+
+/** 烟雾弹投掷：拔销 + 出手嘶声 */
+export function playSmokeThrow() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+  const osc = ac.createOscillator()
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(1400, now)
+  const clickGain = ac.createGain()
+  clickGain.gain.setValueAtTime(0.05, now)
+  clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+  osc.connect(clickGain).connect(ac.destination)
+  osc.start(now)
+  osc.stop(now + 0.05)
+
+  const duration = 0.34
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.7) * 0.16
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.setValueAtTime(700, now + 0.03)
+  filter.frequency.exponentialRampToValueAtTime(2400, now + 0.3)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.0001, now + 0.03)
+  gain.gain.exponentialRampToValueAtTime(0.1, now + 0.12)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now + 0.03)
+  noise.stop(now + 0.36)
+}
+
+/** 烟雾弹落地：低哑“嘶—” */
+export function playSmokeLand() {
+  const ac = getCtx()
+  if (!ac) return
+  const now = ac.currentTime
+  const duration = 0.6
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * duration), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.6) * 0.22
+  }
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(900, now)
+  filter.frequency.exponentialRampToValueAtTime(180, now + duration)
+  const gain = ac.createGain()
+  gain.gain.setValueAtTime(0.22, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+  noise.connect(filter).connect(gain).connect(ac.destination)
+  noise.start(now)
+  noise.stop(now + duration)
+}

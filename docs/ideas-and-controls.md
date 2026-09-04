@@ -6,6 +6,29 @@
 
 ---
 
+## 0. D 医疗兵完整设计（已确认方向，第一版已实现）
+
+见 [`docs/medic-d-design.md`](./medic-d-design.md)：
+D 为四系统配置（SMG / 镇定剂针枪 / 烟雾弹 / 四台支援无人机），
+无人机支持 **HEAL / ENHANCE / CLOAK** 三种现场切换的支援模式
+（治疗、身体强化、投影隐形：自身与队友都算）；HUD 为全队最复杂的
+绿色医疗终端，需展示所有队友医疗状态与其他状态。当前含“飞向队友/隐形”
+的内容均为占位实现，待角色移动与全员同场后接入真实队友实体。
+（第一版已落地：`src/state/medicStore.ts` + `MedicSmg/DartGun/SmokeKit/SupportDrones` + `DHud`。）
+
+---
+
+## 0. E 通信兵完整设计（已确认方向，第一版已实现）
+
+见 [`docs/comms-e-design.md`](./comms-e-design.md)：
+E 为通信+侦察一体的信息中枢，四系统配置（AR-05 侦察步枪 / RAVEN-05 大型无人机 /
+TRI-05 信标 / EMP-05 干扰弹），HUD 为紫色网络终端（复杂度与 D 同级）。
+RAVEN 与 A 机器人 Q-01 的区别：空中平台 + `F` 工作模式循环 + `V` 链路视角，
+不做全屏遥控行走。（第一版已落地：`src/state/commsStore.ts` +
+`CommsRifle/RavenDrone/BeaconKit/EmpKit` + `EHud/RavenHud`。）
+
+---
+
 ## 1. 武器切换逻辑与操作逻辑优化（用户提议 + 我的展开）
 
 ### 1.1 现状与痛点
